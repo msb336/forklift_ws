@@ -21,11 +21,12 @@ client.confirmConnection()
 
 
 vehicle = client.simGetVehiclePose().position
-client.simSetVehiclePose(Pose(Vector3r(0,0,-0.59), Quaternionr()), True)
-center = Vector3r(-5,0,0)
+client.simSetVehiclePose(Pose(Vector3r(0,0,1), Quaternionr()), True)
+center = Vector3r(-4,0,1)
 print("center location: (", center.x_val, center.y_val, center.z_val, ")")
 print("car location: (", vehicle.x_val, vehicle.y_val, vehicle.z_val, ")")
-range = [0, 1]
+range = [0, 0]
+# client.simSetObjectPose("pallet", setRandomPose(center, range))
 while True:
     client.simSetObjectPose("pallet", setRandomPose(center, range))
     sleep(0.5)
