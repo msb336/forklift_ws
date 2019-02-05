@@ -50,7 +50,10 @@ def getImportantValues(point_cloud):
     # get delF (distance from nearest point to nearest edge)
     delF1 = e1[0] - min_x
     delF2 = e2[0] - min_x
-    values = np.concatenate((np.array([tolerance, min_norm, min_x]), e1, e2, np.array([difE, delF1, delF2, x_standard_dev])))
+
+    # get proposed cost
+    cost = difE - min_x
+    values = np.concatenate((np.array([tolerance, min_norm, min_x]), e1, e2, np.array([difE, delF1, delF2, x_standard_dev, cost])))
     return values
 
 client = airsim.CarClient()
@@ -59,23 +62,24 @@ client.confirmConnection()
 
 vehicle = client.simGetVehiclePose().position
 client.simSetVehiclePose(Pose(Vector3r(0,0,1), Quaternionr()), True)
-center = Vector3r(-4,0,1)
-# center = [4,0,1]
+# center = Vector3r(-4,0,1)
+center = [4,0,1]
 offset_range = [0, 1]
 # client.simSetObjectPose("pallet", setRandomPose(center, offset_range))
 f = open('norotation-data.csv', 'w')
-f.write('dispx,dispy,quatz,tolerance,min_norm,min_x,edge1_x,edge1_y,edge2_x,edge2_y,difE,delF1,delF2,std\n')
-# displacement = np.array((0,0))
-for i in range(101):
-    random_pose, displacement, rotation = setRandomPose(center, offset_range)
-    # rotation = 4*i/100 - 2
-    # random_pose = setPose(center, rotation)
+f.write('dispx,dispy,quatz,tolerance,min_norm,min_x,edge1_x,edge1_y,edge2_x,edge2_y,difE,delF1,delF2,std,proposed-cost,yes\n')
+displacement = np.array((0,0))
+for i in range(201):
+    print(i)
+    # random_pose, displacement, rotation = setRandomPose(center, offset_range)
+    rotation = 2*np.sin(2*np.pi*i/200) #4*i/100 - 2
+    random_pose = setPose(center, rotation)
     client.simSetObjectPose("pallet", random_pose)
     pcdata = np.array((10,10,10))
     for i in range(5):
         lidar = client.getLidarData()
         pcdata = np.append(pcdata, np.asarray(lidar.point_cloud))
-        sleep(0.01)
+        sleep(0.2)
     if len(pcdata) > 3:
         data = getImportantValues(pcdata)
         save_data = np.concatenate((displacement.reshape(1,-1), np.array([rotation]).reshape(1,-1), data.reshape(1,-1)), axis=1).reshape(-1,)
