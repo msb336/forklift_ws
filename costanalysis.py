@@ -12,14 +12,23 @@ def convertToPolar(cloud):
     theta = np.arctan(cloud[:,1]/cloud[:,0])
     return r, theta
 
+def getError(r,theta, distance, bounds):
+    target_theta = theta[np.logical_and(theta>=bounds[0], theta<=bounds[1])]
+    target_r = r[np.logical_and(theta>=bounds[0], theta<=bounds[1])]
+    outer_theta = theta[np.logical_or(theta<bounds[0], theta > bounds[1])]
+    outer_r = r[np.logical_or(theta<bounds[0], theta > bounds[1])]
+
+    in_error = np.linalg.norm(target_r-distance/np.cos(target_theta))
+    out_error = np.linalg.norm(outer_r - distance/np.cos(outer_theta))
+    return in_error, out_error
 
 def setRandomPose(center, offset_range):
     random_vector = np.random.random_sample((2,1))
     unit_vector = random_vector / np.linalg.norm(random_vector)
     displacement_vector = (offset_range[1]-offset_range[0])*(np.random.random_sample()-0.5)*2*unit_vector + offset_range[0]
     displacement_vector = displacement_vector.reshape(-1,)
-    position = Vector3r(x_val = displacement_vector[0]-center[0], 
-                        y_val = displacement_vector[1] - center[1], 
+    position = Vector3r(x_val = center[0]+displacement_vector[0], 
+                        y_val = center[1] + displacement_vector[1], 
                         z_val = center[2])
     rotation = 2*np.sin(2*np.pi*np.random.random_sample())
     orientation = Quaternionr(z_val=rotation)
@@ -82,12 +91,22 @@ def ping(client, view=False):
         pptk.viewer(np.asarray(l.point_cloud).reshape(-1,3))
 
     return cost
+def getClosestPoint(client):
+    l = client.getLidarData()
+    cloud = np.asarray(l.point_cloud).reshape(-1,3)[:,0:2]
+    r,theta = convertToPolar(cloud)
+    dist = min(r)
+    cutoff = 1.2*dist
+    lower_theta_bound = min(theta[r <= cutoff] )
+    upper_theta_bound = max(theta[r <= cutoff] )
+
+    return dist, [lower_theta_bound, upper_theta_bound]
 def setCar(client):
     client.simSetVehiclePose(Pose(Vector3r(0,0,1), Quaternionr()), True)
 def setup():
     cli = importThings()
     center = getPallet(cli)
-    spot = [-5,0,center[2]]
+    spot = [5,0,center[2]]
     setPallet(cli,spot,0)
     setCar(cli)
     return cli, spot
@@ -106,24 +125,36 @@ def updatePlot(plot, fig, x,y):
 offset_range = [0, 0.2]
 
 client, center = setup()
+sleep(0.2)
 # f = open('costanalysis.csv', 'w')
 # f.write('dispx,dispy,quatz,normalized-error,tolerance,cost\n')
 
+tolerance = 5
+distance,bounds = getClosestPoint(client)
+r,theta = getPolar(client)
+print(distance, bounds)
+
 fig = plt.figure()
 ax = fig.add_subplot(111)
-plot_data, = ax.plot([],[], 'ro')
+plot_data, = ax.plot(theta,r, 'ro')
 ax.axis([-np.pi, np.pi, 0, 20])
 fig.show()
+inerr, outerr = getError(r,theta,distance,bounds)
+print("inbounds:", inerr, "outbounds", outerr)
+input()
+
 for i in range(101):
-    tolerance = 5
+
     random_pose, displacement, rotation = setRandomPose(center, offset_range)
     rotation_error = min(2-abs(rotation), abs(rotation))
-    error = abs(displacement[1]) + min(2-abs(rotation), abs(rotation))
     client.simSetObjectPose("pallet", random_pose)
-
-    r,theta = getPolar(client)
-    updatePlot(ax,fig,theta,r)
     sleep(0.2)
+    r,theta = getPolar(client)
+    inerr, outerr = getError(r,theta,distance,bounds)
+    print("inbounds:", inerr, "outbounds", outerr)
+    updatePlot(ax,fig,theta,r)
+    
+    input()
     # pcdata = np.array((10,10,10))
     # for i in range(5):
     #     lidar = client.getLidarData()
