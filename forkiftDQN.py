@@ -477,42 +477,48 @@ def isDone(car_state, car_controls, reward):
 client,car_controls,center = setup()
 reward_calculator = Reward(client)
 
-# Make RL agent
-NumBufferFrames = 4
-SizeRows = 84
-SizeCols = 84
-NumActions = 7
-agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
+# # Make RL agent
+# NumBufferFrames = 4
+# SizeRows = 2
+# SizeCols = 1
+# NumActions = 7
+# agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
 
-# Train
-epoch = 100
-current_step = 0
-max_steps = epoch * 250000
+# # Train
+# epoch = 100
+# current_step = 0
+# max_steps = epoch * 250000
 
 while True:
-    action = agent.act(current_state)
-    car_controls = interpret_action(action)
-    client.setCarControls(car_controls)
+    # action = agent.act(current_state)
+    # car_controls = interpret_action(action)
+    # client.setCarControls(car_controls)
 
-    car_state = client.getCarState()
+    # car_state = client.getCarState()
+    inner,outer = reward_calculator.getError()
     reward = reward_calculator.calculateReward()
-    print(reward)
-    done = isDone(car_state, car_controls, reward)
-    if done == 1:
-        reward = -10
 
-    agent.observe(current_state, action, reward, done)
-    agent.train()
+    print(reward_calculator.distance,inner,outer,reward)
+    sleep(0.1)
+    
+    # print(reward)
+    # done = isDone(car_state, car_controls, reward)
+    # if done == 1:
+    #     reward = -10
 
-    if done:
-        client.reset()
-        random_pose = setRandomPose(center, [-1,1])
-        client.simSetObjectPose("pallet", random_pose)        
-        setCar(client)
-        car_control = interpret_action(0)
-        client.setCarControls(car_control)
-        time.sleep(1)
-        current_step +=1
+    # agent.observe(current_state, action, reward, done)
+    # agent.train()
 
-    responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
-    current_state = transform_input(responses)
+    # if done:
+    #     client.reset()
+    #     random_pose = setRandomPose(center, [-1,1])
+    #     client.simSetObjectPose("pallet", random_pose)        
+    #     setCar(client)
+    #     car_control = interpret_action(0)
+    #     client.setCarControls(car_control)
+    #     time.sleep(1)
+    #     current_step +=1
+
+    # responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
+    # current_state = transform_input(responses)
+avg_legth = avg_length / 10000

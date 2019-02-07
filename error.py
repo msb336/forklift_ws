@@ -1,10 +1,12 @@
 import airsim
 from airsim.types import Vector3r, Quaternionr, Pose
 import numpy as np
+from time import sleep
 
 class Reward:
     bounds=[]
-    distance=[]
+    length=0.75
+    distance=0
     inlier_error=[]
     outlier_error=[]
     reward=[]
@@ -12,9 +14,9 @@ class Reward:
     alpha=[]
     beta=[]
     outlier_multiplier=[]
-    def __init__(self, c,alpha=5, beta=2,D=0.1):
+    def __init__(self, c,alpha=[1/5, -1], beta=[8, 10],D=0):
         self.client = c
-        self.getClosestPoint()
+        # self.getCenterPoint()
         self.alpha=alpha
         self.beta=beta
         self.D=D
@@ -22,7 +24,7 @@ class Reward:
         r = np.sqrt(np.power(cloud[:,0],2) + np.power(cloud[:,1],2))
         theta = np.arctan(cloud[:,1]/cloud[:,0])
         return r, theta
-    def isolate(self,theta):
+    def isolate(self,r,theta):
         target_theta = theta[np.logical_and(theta>=self.bounds[0], theta<=self.bounds[1])]
         target_r = r[np.logical_and(theta>=self.bounds[0], theta<=self.bounds[1])]
         outer_theta = theta[np.logical_or(theta<self.bounds[0], theta > self.bounds[1])]
@@ -30,13 +32,14 @@ class Reward:
         return [target_theta, target_r], [outer_theta, outer_r]
     def getError(self):
         r,theta = self.getPolar()
-        target,outer = self.isolate(r,theta,self.bounds)
+        self.getCenterPoint(r,theta)
+        target, outer = self.isolate(r,theta)
         target_theta = target[0]
         target_r = target[1]
         outer_theta = outer[0]
         outer_r = outer[1]
         self.inlier_error = np.linalg.norm(target_r-self.distance/np.cos(target_theta))
-        self.outlier_error = np.linalg.norm(outer_r - self.distance/np.cos(outer_theta))
+        self.outlier_error = np.linalg.norm(outer_r - self.distance/np.cos(outer_theta))*0.1
         return self.inlier_error, self.outlier_error
 
     def getPolar(self):
@@ -45,27 +48,28 @@ class Reward:
         r, theta = self.convertToPolar(shaped_cloud)
         return r, theta
 
-    def getClosestPoint(self):
-        l = self.client.getLidarData()
-        cloud = np.asarray(l.point_cloud).reshape(-1,3)[:,0:2]
-        r,theta = self.convertToPolar(cloud)
-        self.distance = min(r)
-        cutoff = 1.2*self.distance
-        lower_theta_bound = min(theta[r <= cutoff] )
-        upper_theta_bound = max(theta[r <= cutoff] )
+    def getCenterPoint(self,r,theta):
+        self.distance = min(r[abs(theta) == min(abs(theta))])
+        lower_theta_bound = np.arcsin(-self.length/(2*self.distance))
+        upper_theta_bound = np.arcsin(self.length/(2*self.distance))
         self.bounds = [lower_theta_bound, upper_theta_bound]
+        return self.distance, self.bounds
 
     def calculateReward(self):
-        self.reward = self.alpha*np.exp(self.beta/self.inlier_error) + self.D*self.outlier_error -0.5
-        return self.reward
+        inlier_reward = -self.alpha[0] * self.inlier_error + self.beta[0]
+        outlier_reward = self.alpha[1] * np.exp(self.beta[1]/self.outlier_error)
+        self.reward = inlier_reward + outlier_reward + self.D
+        return self.reward,inlier_reward,outlier_reward
     def avgError(self, iterations):
         avgin=0
         avgout=0
         for i in range(iterations):
-            r,theta = self.getPolar()
-            iner,outer = self.getError(r,theta)
+            iner,outer = self.getError()
             avgin+=iner
             avgout+=outer
+            sleep(0.05)
         avgin=avgin/iterations
         avgout=avgout/iterations
+        self.inlier_error = avgin
+        self.outlier_error=avgout
         return avgin,avgout
