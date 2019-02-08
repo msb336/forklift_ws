@@ -13,13 +13,19 @@ class Reward:
     client=[]
     alpha=[]
     beta=[]
+    theta_box=[]
     outlier_multiplier=[]
-    def __init__(self, c,alpha=[1/5, -1], beta=[8, 10],D=0):
+    min_angle = -10*np.pi/180
+    max_angle = 10*np.pi/180
+    return_size=512
+    def __init__(self, c,return_size=512, alpha=[1/5, -1], beta=[0, 10],D=0):
         self.client = c
         # self.getCenterPoint()
         self.alpha=alpha
         self.beta=beta
         self.D=D
+        self.return_size=return_size
+
     def convertToPolar(self,cloud):
         r = np.sqrt(np.power(cloud[:,0],2) + np.power(cloud[:,1],2))
         theta = np.arctan(cloud[:,1]/cloud[:,0])
@@ -42,11 +48,17 @@ class Reward:
         self.outlier_error = np.linalg.norm(outer_r - self.distance/np.cos(outer_theta))*0.1
         return self.inlier_error, self.outlier_error
 
-    def getPolar(self):
+    def getPolar(self,chop=False):
         l = self.client.getLidarData().point_cloud
         shaped_cloud = np.asarray(l).reshape(-1,3)[:,0:2]
         r, theta = self.convertToPolar(shaped_cloud)
-        return r, theta
+        if chop:
+            height = len(r)
+            r = r[round(height/2)-round(self.return_size/2):round(height/2)+round(self.return_size/2)]
+            theta = theta[round(height/2)-round(self.return_size/2):round(height/2)+round(self.return_size/2)]
+            return np.concatenate((r,theta))
+        else:
+            return r, theta
 
     def getCenterPoint(self,r,theta):
         self.distance = min(r[abs(theta) == min(abs(theta))])
@@ -59,7 +71,7 @@ class Reward:
         inlier_reward = -self.alpha[0] * self.inlier_error + self.beta[0]
         outlier_reward = self.alpha[1] * np.exp(self.beta[1]/self.outlier_error)
         self.reward = inlier_reward + outlier_reward + self.D
-        return self.reward,inlier_reward,outlier_reward
+        return self.reward#,inlier_reward,outlier_reward
     def avgError(self, iterations):
         avgin=0
         avgout=0
