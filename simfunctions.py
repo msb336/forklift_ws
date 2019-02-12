@@ -36,8 +36,8 @@ def setPose(center, z_rotation):
     return pose
 def getPallet(client):
     pose=client.simGetObjectPose("pallet")
-    center = [pose.position.x_val, pose.position.y_val, pose.position.z_val]
-    return center
+    # center = [pose.position.x_val, pose.position.y_val, pose.position.z_val]
+    return pose
 def setPallet(client,center, rotation):
     client.simSetObjectPose("pallet", setPose(center, rotation), True)
 
@@ -45,21 +45,22 @@ def setCar(client):
     client.simSetVehiclePose(Pose(Vector3r(0,0,1), Quaternionr()), True)
 def getCar(client):
     pose = client.simGetVehiclePose()
-    xy_location = [pose.position.x_val, pose.position.y_val]
-    z_rotation = pose.orientation.z_val
-    return xy_location, z_rotation
+    # xy_location = [pose.position.x_val, pose.position.y_val]
+    # z_rotation = pose.orientation.z_val
+    # return xy_location, z_rotation
+    return pose
 
 def setup():
     cli = airsim.CarClient()
     center = getPallet(cli)
-    spot = [5,0,center[2]]
+    spot = [5,0,center.position.z_val]
     setPallet(cli,spot,0)
     setCar(cli)
 
     cli.enableApiControl(False)
     car_controls = airsim.CarControls()
     sleep(0.1)
-    return cli, car_controls, spot
+    return cli, car_controls, getPallet(cli)#spot
 
 def ping(client, view=False):
     l = client.getLidarData()
