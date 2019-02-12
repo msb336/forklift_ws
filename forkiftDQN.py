@@ -4,9 +4,9 @@ import math
 import time
 from argparse import ArgumentParser
 
-from error import *
+from LidarAcquisition import *
 from simfunctions import *
-
+from Reward import *
 
 import numpy as np
 from cntk.core import Value #pip install cntk-gpu
@@ -430,10 +430,9 @@ class DeepQAgent(object):
         self._metrics_writer.write_value('Sum rewards per ep.', sum(self._episode_rewards), self._num_actions_taken)
 
 
-def transform_input(responses):
-    img1d = np.array(responses[0].image_data_float, dtype=np.float)
-    img1d = 255/np.maximum(np.ones(img1d.size), img1d)
-    img2d = np.reshape(img1d, (responses[0].height, responses[0].width))
+def transform_input(response,shape=32):
+    img1d = response
+    img2d = np.reshape(img1d, (32,32))
 
     from PIL import Image
     image = Image.fromarray(img2d)
@@ -442,83 +441,71 @@ def transform_input(responses):
     return im_final
 
 def interpret_action(action):
+    car_controls.throttle = 0.2
     if action == 0:
-        car_controls.throttle = 0
-        car_controls.brake = 1
-    elif action == 1:
-        car_controls.steering = 0
-        car_controls.throttle = 0.2
-    elif action == 2:
-        car_controls.steering = 0.25
-        car_controls.throttle = 0.2
-    elif action == 3:
-        car_controls.steering = -0.25
-        car_controls.throttle = 0.2
-    elif action == 4:
-        car_controls.steering = 0.25
-        car_control.throttle = -0.2
-    elif action == 5:
-        car_controls.steering = -0.25
-        car_controls.throttle = -0.2
+        car_controls.steering = 0.5
     else:
-        car_controls.steering = 0
-        car_controls.throttle = -0.2
+        car_controls.steering = -0.5
     return car_controls
 
 def isDone(car_state, car_controls, reward):
     done = 0
-    if reward < -1:
+    if reward < -25:
         done = 1
-    if car_controls.brake == 0:
-        if car_state.speed <= 2:
-            done = 1
     return done
 
 client,car_controls,center = setup()
-reward_calculator = Reward(client)
+reward_calculator = Reward(center)
+lidar_getter = LidarAcquisition(client)
 
-# # Make RL agent
-# NumBufferFrames = 4
-# SizeRows = 2
-# SizeCols = 1
-# NumActions = 7
-# agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
+ # Make RL agent
+NumBufferFrames = 4
+SizeRows = 32
+SizeCols = 32
+NumActions = 2
+agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
 
-# # Train
-# epoch = 100
-# current_step = 0
-# max_steps = epoch * 250000
+# Train
+epoch = 100
+current_step = 0
+max_steps = epoch * 250000
+
+responses = reward_calculator.getPolar(True)
+current_state = transform_input(responses)
+tnow = time.clock()
+done=0
 
 while True:
-    # action = agent.act(current_state)
-    # car_controls = interpret_action(action)
-    # client.setCarControls(car_controls)
+    action = agent.act(current_state)
 
-    # car_state = client.getCarState()
-    inner,outer = reward_calculator.getError()
-    reward = reward_calculator.calculateReward()
+    car_controls = interpret_action(action)
+    client.setCarControls(car_controls)
 
-    print(reward_calculator.distance,inner,outer,reward)
-    sleep(0.1)
-    
-    # print(reward)
-    # done = isDone(car_state, car_controls, reward)
-    # if done == 1:
-    #     reward = -10
+    car_state = client.getCarState()
+    vehicle_pose = getCar(client)
+    [y,r,d] = reward_calculator.getOffset(vehicle_pose)
+    reward = reward_calculator.getReward()
 
-    # agent.observe(current_state, action, reward, done)
-    # agent.train()
+    if client.simGetCollisionInfo().has_collided or reward > -0.01:
+        done = 1
+    elif (time.clock() - tnow > 5):
+        done = 1
+        reward = -10
 
-    # if done:
-    #     client.reset()
-    #     random_pose = setRandomPose(center, [-1,1])
-    #     client.simSetObjectPose("pallet", random_pose)        
-    #     setCar(client)
-    #     car_control = interpret_action(0)
-    #     client.setCarControls(car_control)
-    #     time.sleep(1)
-    #     current_step +=1
+    agent.observe(current_state, action, reward, done)
+    agent.train()
 
-    # responses = client.simGetImages([airsim.ImageRequest("0", airsim.ImageType.DepthPerspective, True, False)])
-    # current_state = transform_input(responses)
-avg_legth = avg_length / 10000
+    if done:
+        done=0
+        client.reset()
+        random_pose = setRandomPose(client,center, [-0.3,0.3], [-0.2,0.2])     
+        setCar(client)
+        car_control = interpret_action(0)
+        client.setCarControls(car_control)
+        tnow = time.clock()
+        time.sleep(0.5)
+        current_step +=1
+
+    responses = reward_calculator.getPolar(True)
+    if len(responses) == 1024:
+        current_state = transform_input(responses)
