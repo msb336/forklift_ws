@@ -120,7 +120,7 @@ class Reward:
         
         return [self.y_offset_, self.angular_offset_, self.distance_]
     def getReward(self):
-        reward = -abs(self.y_offset_)- abs(self.angular_offset_)
+        reward = -np.exp(2*abs(self.y_offset_)) - np.exp(abs(self.angular_offset_))
         return reward
 
 

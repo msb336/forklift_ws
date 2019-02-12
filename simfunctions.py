@@ -8,21 +8,30 @@ import pptk
 #import matplotlib.pyplot as plt
 
 
-def setRandomPose(center, offset_range):
+
+def setRandomPose(client, center, offset_range, rotation_range):
     random_vector = np.random.random_sample((2,1))
     unit_vector = random_vector / np.linalg.norm(random_vector)
-    displacement_vector = (offset_range[1]-offset_range[0])*(np.random.random_sample())*2*unit_vector + offset_range[0]
+    displacement_vector = (offset_range[1]-offset_range[0])*(np.random.random_sample())*unit_vector + offset_range[0]
     displacement_vector = displacement_vector.reshape(-1,)
-    position = Vector3r(x_val = center[0]+displacement_vector[0], 
-                        y_val = center[1] + displacement_vector[1], 
-                        z_val = center[2])
-    rotation = 2*np.sin(2*np.pi*np.random.random_sample())
+    position = Vector3r(center.position.x_val+displacement_vector[0], 
+                        center.position.y_val + displacement_vector[1], 
+                        center.position.z_val)
+
+    rotation = (rotation_range[1]-rotation_range[0])*np.random.random_sample() + rotation_range[0] #2*np.sin(2*np.pi*np.random.random_sample())
     orientation = Quaternionr(z_val=rotation)
+
     pose = Pose(position_val = position, orientation_val = orientation)
+    client.simSetObjectPose("pallet", pose, True)
+
     return pose, displacement_vector, rotation
 
+
+
 def createPose(center, z_rotation):
+
     pose = Pose(Vector3r(center[0], center[1], center[2]), Quaternionr(z_val = z_rotation))
+
     return pose
 
 def getLidarCount(client, iterations):
@@ -42,7 +51,8 @@ def setPallet(client,center, rotation):
     client.simSetObjectPose("pallet", setPose(center, rotation), True)
 
 def setCar(client):
-    client.simSetVehiclePose(Pose(Vector3r(0,0,1), Quaternionr()), True)
+    z = getCar(client).position.z_val
+    client.simSetVehiclePose(Pose(Vector3r(0,0,z), Quaternionr()), True)
 def getCar(client):
     pose = client.simGetVehiclePose()
     # xy_location = [pose.position.x_val, pose.position.y_val]
@@ -53,11 +63,11 @@ def getCar(client):
 def setup():
     cli = airsim.CarClient()
     center = getPallet(cli)
-    spot = [5,0,center.position.z_val]
+    spot = [10,0,center.position.z_val]
     setPallet(cli,spot,0)
     setCar(cli)
 
-    cli.enableApiControl(False)
+    cli.enableApiControl(True)
     car_controls = airsim.CarControls()
     sleep(0.1)
     return cli, car_controls, getPallet(cli)#spot

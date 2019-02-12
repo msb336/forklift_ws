@@ -448,11 +448,6 @@ def interpret_action(action):
         car_controls.steering = -0.5
     return car_controls
 
-def isDone(car_state, car_controls, reward):
-    done = 0
-    if reward < -25:
-        done = 1
-    return done
 
 client,car_controls,center = setup()
 reward_calculator = Reward(center)
@@ -470,7 +465,7 @@ epoch = 100
 current_step = 0
 max_steps = epoch * 250000
 
-responses = lidar_getter.getPolar()
+responses = lidar_getter.getPolar(True)
 current_state = transform_input(responses)
 tnow = time.clock()
 done=0
@@ -485,12 +480,19 @@ while True:
     vehicle_pose = getCar(client)
     [y,r,d] = reward_calculator.getOffset(vehicle_pose)
     reward = reward_calculator.getReward()
+    print("offset",y,"rotation", r, "reward", reward)
 
-    if client.simGetCollisionInfo().has_collided or reward > -0.01:
+    if client.simGetCollisionInfo().has_collided and reward > -0.01:
         done = 1
-    elif (time.clock() - tnow > 5):
+        car_controls.throttle=0
+        car_controls.steering=0
+        client.setCarControls(car_controls)
+    elif (time.clock() - tnow > 10) or client.simGetCollisionInfo().has_collided:
         done = 1
         reward = -10
+        car_controls.throttle=0
+        car_controls.steering=0
+        client.setCarControls(car_controls)
 
     agent.observe(current_state, action, reward, done)
     agent.train()
