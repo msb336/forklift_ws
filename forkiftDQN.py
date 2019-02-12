@@ -460,8 +460,8 @@ lidar_getter = LidarAcquisition(client)
 
  # Make RL agent
 NumBufferFrames = 4
-SizeRows = 32
-SizeCols = 32
+SizeRows = 84
+SizeCols = 84
 NumActions = 2
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
 
@@ -470,7 +470,7 @@ epoch = 100
 current_step = 0
 max_steps = epoch * 250000
 
-responses = reward_calculator.getPolar(True)
+responses = lidar_getter.getPolar()
 current_state = transform_input(responses)
 tnow = time.clock()
 done=0
@@ -506,6 +506,6 @@ while True:
         time.sleep(0.5)
         current_step +=1
 
-    responses = reward_calculator.getPolar(True)
+    responses = lidar_getter.getPolar(True)
     if len(responses) == 1024:
         current_state = transform_input(responses)

@@ -5,7 +5,7 @@ from time import sleep
 from argparse import ArgumentParser
 import numpy as np
 import pptk
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 
 def setRandomPose(center, offset_range):
