@@ -328,7 +328,7 @@ class DeepQAgent(object):
         self._learner = l_sgd
         self._trainer = Trainer(criterion, (criterion, None), l_sgd, self._metrics_writer)
 
-        #self._trainer.restore_from_checkpoint('models/oldmodels/model800000')
+        self._trainer.restore_from_checkpoint('dqnmodel')
 
     def act(self, state):
         """ This allows the agent to select the next action to perform in regard of the current state of the environment.
@@ -444,32 +444,33 @@ def transform_input(response,shape=32):
     return im_final
 
 def interpret_action(action):
-    car_controls.throttle = -1
+    car_controls.throttle = -0.7
     car_controls.is_manual_gear = True
     car_controls.manual_gear = -1
 
     if action == 0:
-        car_controls.steering = 0.5
+        car_controls.steering = 1
     else:
-        car_controls.steering = -0.5
+        car_controls.steering = -1
     return car_controls
 
-def isDone(client, reward, distance, time, time_threshold=10):
-    if (distance < 1.2) and reward > -0.04:
-        print("inside pallet!")
+def isDone(client, reward, distance, time, time_threshold=20):
+    if (distance < 0.7) and reward > -0.3:
+        print("inside pallet! distance", distance, "reward", reward)
         done = True
-        reward +=10
+        reward +=20
         car_controls.throttle=0
         car_controls.steering=0
         client.setCarControls(car_controls)
     elif (time > time_threshold) or (client.simGetCollisionInfo().has_collided):
         print("ran out of time or hit something! distance:", distance, "reward", reward)
         done = True
-        reward -= 10
+        #reward -= 10
         car_controls.throttle=0
         car_controls.steering=0
         client.setCarControls(car_controls)
     elif reward < -10:
+        print("garbage behavior. reward", reward)
         done = True
     else:
         done = False
@@ -497,7 +498,7 @@ tnow = time.clock()
 max_time = 6
 done=0
 increment = 50
-save_increment = 200
+save_increment = 20
 tic = 0
 
 
@@ -513,7 +514,7 @@ while True:
     reward = reward_calculator.getReward()
     distance = math.fabs(d)
     done, reward = isDone(client, reward, distance, time.clock()-tnow)
-    tic+=1
+    #tic+=1
     #if tic >= increment or done:
     #    print("offset",y,"rotation", r, "distance", distance, "reward", reward)
     #    tic = 0
@@ -523,8 +524,6 @@ while True:
 
     if done:
         done=0
-        time.sleep(0.2)
-        print("resetting")
         tic = increment
         client.reset()
         random_pose = setRandomPose(client,center, [-0.1,0.1], [-0.1,0.1])[0]
