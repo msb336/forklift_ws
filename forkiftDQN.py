@@ -1,12 +1,13 @@
+import setup_path 
 import airsim
 from airsim.types import Vector3r, Quaternionr, Pose
 import math
 import time
 from argparse import ArgumentParser
 
-from error import *
+from LidarAcquisition import *
 from simfunctions import *
-
+from Reward import *
 
 import numpy as np
 from cntk.core import Value #pip install cntk-gpu
@@ -20,6 +21,8 @@ from cntk.ops.functions import CloneMethod, Function
 from cntk.train import Trainer
 
 import pickle
+
+import matplotlib.pyplot as plt
 
 class ReplayMemory(object):
     """
@@ -441,43 +444,46 @@ def transform_input(response,shape=32):
     return im_final
 
 def interpret_action(action):
+    car_controls.throttle = -1
+    car_controls.is_manual_gear = True
+    car_controls.manual_gear = -1
+
     if action == 0:
-        car_controls.throttle = 0
-        car_controls.brake = 1
-    elif action == 1:
-        car_controls.steering = 0
-        car_controls.throttle = 1
-    elif action == 2:
-        car_controls.steering = 1
-        car_controls.throttle = 1
-    elif action == 3:
-        car_controls.steering = -1
-        car_controls.throttle = 1
-    elif action == 4:
-        car_controls.steering = 1
-        car_controls.throttle = -1
-    elif action == 5:
-        car_controls.steering = -1
-        car_controls.throttle = -1
+        car_controls.steering = 0.5
     else:
-        car_controls.steering = 0
-        car_controls.throttle = -1
+        car_controls.steering = -0.5
     return car_controls
 
-def isDone(car_state, car_controls, reward):
-    done = 0
-    if reward < -25:
-        done = 1
-    return done
+def isDone(client, reward, distance, time, time_threshold=10):
+    if (distance < 1.2) and reward > -0.04:
+        print("inside pallet!")
+        done = True
+        reward +=10
+        car_controls.throttle=0
+        car_controls.steering=0
+        client.setCarControls(car_controls)
+    elif (time > time_threshold) or (client.simGetCollisionInfo().has_collided):
+        print("ran out of time or hit something! distance:", distance, "reward", reward)
+        done = True
+        reward -= 10
+        car_controls.throttle=0
+        car_controls.steering=0
+        client.setCarControls(car_controls)
+    elif reward < -10:
+        done = True
+    else:
+        done = False
+    return done, reward
 
-client,car_controls,center = setup()
-reward_calculator = Reward(client)
+client,car_controls,center, car_center = setup()
+reward_calculator = Reward(center)
+lidar_getter = LidarAcquisition(client)
 
  # Make RL agent
 NumBufferFrames = 4
 SizeRows = 84
 SizeCols = 84
-NumActions = 7
+NumActions = 2
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True)
 
 # Train
@@ -485,41 +491,54 @@ epoch = 100
 current_step = 0
 max_steps = epoch * 250000
 
-responses = reward_calculator.getPolar(True)
+responses = lidar_getter.getPolar(True)
 current_state = transform_input(responses)
 tnow = time.clock()
+max_time = 6
 done=0
+increment = 50
+save_increment = 200
+tic = 0
+
+
 while True:
     action = agent.act(current_state)
-    #print("action", action)
+
     car_controls = interpret_action(action)
     client.setCarControls(car_controls)
 
     car_state = client.getCarState()
-    inner,outer = reward_calculator.getError()
-    reward = reward_calculator.calculateReward()
+    vehicle_pose = getCar(client)
+    [y,r,d] = reward_calculator.getOffset(vehicle_pose)
+    reward = reward_calculator.getReward()
+    distance = math.fabs(d)
+    done, reward = isDone(client, reward, distance, time.clock()-tnow)
+    tic+=1
+    #if tic >= increment or done:
+    #    print("offset",y,"rotation", r, "distance", distance, "reward", reward)
+    #    tic = 0
 
-    sleep(0.1)
-    if client.simGetCollisionInfo().has_collided:
-        done = 1
-        reward = -1000
-    elif (time.clock() - tnow > 5) and client.getCarState().kinematics_estimated.linear_velocity.get_length() < 1.85:
-        done = 1
-        reward = -100
     agent.observe(current_state, action, reward, done)
     agent.train()
-    timeout = (time.clock() - tnow) > 10
-    if done or timeout:
+
+    if done:
         done=0
+        time.sleep(0.2)
+        print("resetting")
+        tic = increment
         client.reset()
-        random_pose = setRandomPose(client,center, [-0.3,0.3], [-0.2,0.2])     
-        setCar(client)
+        random_pose = setRandomPose(client,center, [-0.1,0.1], [-0.1,0.1])[0]
+        reward_calculator.reset(random_pose)
+        setCar(client, car_center)
         car_control = interpret_action(0)
         client.setCarControls(car_control)
         tnow = time.clock()
         time.sleep(0.5)
         current_step +=1
+        if current_step % save_increment == 0:
+            print("saving model")
+            agent._trainer.save_checkpoint("dqnmodel")
 
-    responses = reward_calculator.getPolar(True)
+    responses = lidar_getter.getPolar(True)
     if len(responses) == 1024:
         current_state = transform_input(responses)
