@@ -1,0 +1,22 @@
+<launch>
+<!-- Localization -->
+  <!-- <node pkg="amcl" type="amcl" name="amcl" output="screen"/> -->
+  <!-- </node> -->
+
+    <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" output="screen"/>
+    <node pkg="costmap_2d" type="costmap_2d_node" name="costmap_node" output="screen">
+        <!-- <rosparam file="$(find costmap_2d)/test/costmap_params.yaml" command="load" ns="global_costmap/static_layer" /> -->
+        <rosparam file="costmap_params.yaml" command="load" ns="costmap" />
+        <rosparam file="local_costmap_params.yaml" command="load"  />
+        <rosparam file="global_costmap_params.yaml" command="load"  />
+
+    </node>
+
+    <node pkg="move_base" type="move_base" name="move_base" output="screen">
+        <rosparam file="costmap_params.yaml" command="load" ns="global_costmap" />
+        <rosparam file="costmap_params.yaml" command="load" ns="local_costmap" />
+        <rosparam file="local_costmap_params.yaml" command="load" />
+        <rosparam file="global_costmap_params.yaml" command="load" />
+        <rosparam file="traj_planner.yaml" command="load" />
+    </node>
+</launch>
