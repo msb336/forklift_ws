@@ -1,6 +1,6 @@
 mkdir src; cd src
 git clone https://github.com/msb336/airsim_ros_pkgs.git
-git clone https://github.com/ros-planning/navigation.git -b kinetic-devel
+git clone https://github.com/msb336/navigation.git -b custom-sub
 git clone https://github.com/ros-planning/navigation_msgs.git
 git clone https://github.com/ros/geometry2.git -b kinetic-devel
 git clone https://github.com/rst-tu-dortmund/teb_local_planner.git -b kinetic-devel

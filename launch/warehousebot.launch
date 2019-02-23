@@ -5,7 +5,6 @@
 
     <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" output= "screen"/>
     <node pkg="costmap_2d" type="costmap_2d_node" name="costmap_node" >
-        <!-- <rosparam file="$(find costmap_2d)/test/costmap_params.yaml" command="load" ns="global_costmap/static_layer" /> -->
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="costmap" />
         <rosparam file="planner-params/local_costmap_params.yaml" command="load"  />
         <rosparam file="planner-params/global_costmap_params.yaml" command="load"  />
