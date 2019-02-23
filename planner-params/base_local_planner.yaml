@@ -17,12 +17,12 @@ TebLocalPlannerROS:
  max_vel_x: 10
  max_vel_x_backwards: 2
  max_vel_theta: 1
- acc_lim_x: 10
- acc_lim_theta: 010
+ acc_lim_x: 5
+ acc_lim_theta: 1
  min_turning_radius: 2
  footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
-   type: "circular"
-   radius: 1.5 # for type "circular"
+   type: "polygon"
+   radius: 2 # for type "circular"
    line_start: [-0.3, 0.0] # for type "line"
    line_end: [0.3, 0.0] # for type "line"
    front_offset: 0.2 # for type "two_circles"
@@ -32,13 +32,11 @@ TebLocalPlannerROS:
    vertices: [[-1.7, -1], [-1.7, 1], [1.7,1],[1.7,-1]] # for type "polygon"
 
  # GoalTolerance
-    
  xy_goal_tolerance: 0.2
  yaw_goal_tolerance: 0.1
  free_goal_vel: False
     
  # Obstacles
-    
  min_obstacle_dist: 1
  include_costmap_obstacles: True
  costmap_obstacles_behind_robot_dist: 1.0
@@ -49,8 +47,8 @@ TebLocalPlannerROS:
 
  # Optimization
     
- no_inner_iterations: 5
- no_outer_iterations: 4
+ no_inner_iterations: 2
+ no_outer_iterations: 2
  optimization_activate: True
  optimization_verbose: False
  penalty_epsilon: 0.1
@@ -59,7 +57,7 @@ TebLocalPlannerROS:
  weight_acc_lim_x: 1
  weight_acc_lim_theta: 1
  weight_kinematics_nh: 1000
- weight_kinematics_forward_drive: 1
+ weight_kinematics_forward_drive: 5
  weight_kinematics_turning_radius: 1
  weight_optimaltime: 1
  weight_obstacle: 50
