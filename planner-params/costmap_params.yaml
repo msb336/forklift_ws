@@ -5,15 +5,15 @@ robot_base_frame: base_link
 
 update_frequency: 20.0
 publish_frequency: 20.0
-publish_voxel_map: true
+publish_voxel_map: false
 static_map: false
 rolling_window: true
 width: 200
 height: 200
-resolution: 2
+resolution: 1
 obstacle_range: 40
 map_type: costmap
-footprint: [[-1.7, -1], [-1.7, 1], [1.7,1],[1.7,-1]]
+footprint: [[-1.5, -0.7], [-1.5, 0.7], [1.5,0.7],[1.5,-0.7]]
 
 obstacle_layer:
   observation_sources: point_cloud_sensor
@@ -21,7 +21,7 @@ obstacle_layer:
 
 
 inflation_layer:
-  inflation_radius: 3
+  inflation_radius: 0.01
   cost_scaling_factor: 5.0
 
 static_layer:

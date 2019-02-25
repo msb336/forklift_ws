@@ -12,4 +12,4 @@ local_costmap:
   rolling_window: true
   width: 200
   height: 200
-  resolution: 2
+  resolution: 1
