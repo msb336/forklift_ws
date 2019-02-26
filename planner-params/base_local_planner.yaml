@@ -2,8 +2,10 @@ footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
    type: "polygon"
    vertices: [[-1.5, -0.7], [-1.5, 0.7], [1.5,0.7],[1.5,-0.7]] # for type "polygon"
 
-min_obstacle_dist: 0.5
+min_obstacle_dist: 0.7
+min_turing_radius: 0.5
+max_gloabl_plan_lookahead_dist: 50
 
 max_vel_x: 5
 max_vel_x_backwards: 1
-max_vel_theta: 0.7
+max_vel_theta: 2
