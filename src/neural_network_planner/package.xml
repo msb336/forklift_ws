@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>neural_network_planner</name>
+  <version>0.0.1</version>
+  <description>neural network for planning and control of HMI forklift robot</description>
+
+  <maintainer email="msb336@drexel.edu">Matt Brown</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>rospy</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>message_runtime</build_depend>
+
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>message_generation</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+</package>
