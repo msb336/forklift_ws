@@ -2,9 +2,9 @@
 ## Repo for all things TMHE at HMI in airsim
 ### Setup
 You'll need:
-[windows subsystem for linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
-[ros melodic](https://janbernloehr.de/2017/06/10/ros-windows)
-access to my fork of the [airsim_ros_pkgs](https://github.com/msb336/airsim_ros_pkgs) repo
+- [windows subsystem for linux](https://docs.microsoft.com/en-us/windows/wsl/install-win10)
+- [ros melodic](https://janbernloehr.de/2017/06/10/ros-windows)
+- access to my fork of the [airsim_ros_pkgs](https://github.com/msb336/airsim_ros_pkgs) repo
 
 make sure you are on the ros-melodic branch once you clone the repo
 
@@ -19,8 +19,8 @@ chmod +x setup.sh
 
 [airsim_ros_pkgs](https://github.com/msb336/airsim_ros_pkgs)
 [ros-navigation](https://github.com/ros-planning/navigation)
-[teb local planner](https://github.com/ros-planning/navigation_msgs)
-[ackerman_msgs]()
+[teb local planner]( https://github.com/rst-tu-dortmund/teb_local_planner)
+[ackerman_msgs](https://github.com/ros-drivers/ackermann_msgs)
 
 
 **and then build the following packages:**
