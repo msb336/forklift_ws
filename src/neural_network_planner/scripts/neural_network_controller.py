@@ -2,7 +2,6 @@ from airsim.types import Pose, Vector3r, Quaternionr
 
 import rospy
 import numpy as np
-import ros_utils
 from ackermann_msgs.msg import AckermannDriveStamped
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TransformStamped
@@ -37,7 +36,7 @@ class NeuralNetworkController:
         self.mono_cam_img_sub = rospy.Subscriber('/airsim/mono/image_raw', Image, self.mono_cam_cb)
         self.depth_img_sub = rospy.Subscriber("/airsim/depth", Image, self.depth_img_cb)
         self.lidar_sub = rospy.Subscriber('/airsim/lidar', PointCloud2, self.lidar_cb)
-        self.vehicle_command_pub = rospy.rospy.Publisher('/ackermann_cmd', AckermannDriveStamped, queue_size=1)
+        self.vehicle_command_pub = rospy.Publisher('/ackermann_cmd', AckermannDriveStamped, queue_size=1)
         
         
 
@@ -48,9 +47,11 @@ class NeuralNetworkController:
     #    vehicle_command_message = self.setVehicleCommandMessage(speed, steering_angle)
     #    self.vehicle_command_pub.publish(vehicle_command_message)
 
-    #def control(self):
-    #    # build your controller here
-
+    # build your controller here
+    def control(self):
+        speed = []
+        steering_angle = []
+        return speed, steering_angle
     def setVehicleCommandMessage(self, speed, steering_angle):
         msg = AckermannDriveStamped()
         msg.header.stamp = rospy.get_rostime()
@@ -79,10 +80,9 @@ class NeuralNetworkController:
         self.sim_pose = Pose(pos, orientation)
 
     def mono_cam_cb(self, image_msg):
-        self.mono_cam_img = np.reshape(np.asarray(image_msg.data), (image_msg.height, image_msg.width))
-
+        self.mono_img = np.fromstring(image_msg.data, np.uint8)
     def depth_img_cb(self, depth_image_msg):
-        self.depth_img = np.reshape(np.asarray(depth_image_msg.data), (depth_image_msg.height, depth_image_msg.width))
-
+        self.depth_img = np.fromstring(depth_image_msg.data, np.uint8)
     def lidar_cb(self, pointcloud_msg):
+        
         self.lidar_pointcloud = pc2.read_points(pointcloud_msg, skip_nans=True, field_names=("x", "y", "z"))
