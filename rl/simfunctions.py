@@ -59,7 +59,6 @@ def getCar(client):
 def setup():
     cli = airsim.CarClient()
     center = getPallet(cli)
-
     car_spot = getCar(cli)
     cli.enableApiControl(True)
     car_controls = airsim.CarControls()
@@ -75,3 +74,12 @@ def ping(client, view=False):
         pptk.viewer(np.asarray(l.point_cloud).reshape(-1,3))
 
     return cost
+
+def graphPolar(r,theta):
+    print("size", len(r))
+    print(np.amin(r), np.amax(r))
+    print(np.amin(theta*180/np.pi), np.amax(theta*180/np.pi))
+
+    plt.plot(theta,r, 'ro')
+    plt.axis([-np.pi/2, np.pi/2, 0, 60])
+    plt.show()

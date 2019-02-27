@@ -153,9 +153,9 @@ class Reward:
 
     def getReward(self):
         beta = [0,0,5]
-        offset_reward = 1-np.exp(abs(self.y_offset_))
+        offset_reward = np.exp(-abs(self.y_offset_))
         angle_reward = -polynomial(self.angular_offset_, beta)
-        reward = offset_reward + angle_reward
+        reward = offset_reward #+ angle_reward
         return reward
 
 
