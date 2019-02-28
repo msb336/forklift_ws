@@ -3,13 +3,13 @@ plugins:
   - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
 
 local_costmap:
-  global_frame: world
+  global_frame: enu 
   robot_base_frame: base_link
   update_frequency: 5.0
   publish_frequency: 2.0
   transform_tolerance: 3.0
   static_map: false
   rolling_window: true
-  width: 200
-  height: 200
-  resolution: 1
+  width: 100
+  height: 100
+  resolution: 0.8

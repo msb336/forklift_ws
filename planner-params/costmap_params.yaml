@@ -1,6 +1,6 @@
 
 
-global_frame: world
+global_frame: enu 
 robot_base_frame: base_link
 
 update_frequency: 20.0
@@ -8,17 +8,17 @@ publish_frequency: 20.0
 publish_voxel_map: false
 static_map: false
 rolling_window: true
-width: 200
-height: 200
-resolution: 1
-obstacle_range: 40
+width: 100
+height: 100
+resolution: 0.8
+obstacle_range: 10 
 map_type: costmap
 footprint: [[-1.5, -0.4], [-1.5, 0.4], [0.5,0.4],[0.5,-0.4]]
 
 obstacle_layer:
   observation_sources: point_cloud_sensor
   point_cloud_sensor: {sensor_frame: lidar_link, data_type: PointCloud2, topic: /airsim/lidar, marking: true, clearing: true}
-
+  footprint_clearing_enable: false
 
 inflation_layer:
   inflation_radius: 0.1

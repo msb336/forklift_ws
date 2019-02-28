@@ -4,7 +4,7 @@ plugins:
   - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
 
 global_costmap:
-  global_frame: world
+  global_frame: enu 
   robot_base_frame: base_link
   update_frequency: 5.0
   publish_frequency: 5.0
