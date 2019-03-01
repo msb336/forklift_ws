@@ -8,6 +8,7 @@ class LidarAcquisition:
     return_size=484
     theta_range = [-10*np.pi/180, 10*np.pi/180]
     bin = []
+
     def __init__(self, c, return_size=484, theta_range=[-10*np.pi/180, 10*np.pi/180]):
         self.client = c
         self.return_size=return_size
@@ -38,11 +39,20 @@ class LidarAcquisition:
             r, theta = self.convertToPolar(shaped_cloud)
             if bin and r.size >= self.return_size:
                 r_bin = self.interpolate(r, theta)
-                return r_bin.reshape((-1,1))
+                return r_bin
             else:
                 return self.chop(r,theta)
         else:
+            return []
+    def getLidar(self, bin=False):
+        l = self.client.getLidarData().point_cloud
+        if len(l) >= self.return_size*3:
+            shaped_cloud = np.asarray(l).reshape(-1,3)[:,0:2]
             if bin:
-                return []
+                return self.interpolate(shaped_cloud[:,0], shaped_cloud[:,1])
             else:
-                return []
+                return shaped_cloud[:,0], shaped_cloud[:,1]
+        else:
+            return []
+
+

@@ -51,18 +51,7 @@ def isDone(client, reward, distance, del_distance, time, time_threshold=10):
     #reward -= 0.5
     return done, reward, successful
 
-def setRange(count):
-    #if success_count < 10:
-    #    theta_range =[-0.03,0.03]
-    #    offset_range =[-0.1, 0.1]
-    #elif success_count < 20:
-    #    theta_range =[-0.1, 0.1]
-    #    offset_range =[-0.1, 0.1]
-    #else:
-    r = count*0.4 / 2000
-    theta_range =[0,0] #[-0.15, 0.15]
-    offset_range =[-r, r]
-    return theta_range, offset_range
+
 
 
 
@@ -83,7 +72,7 @@ client,car_controls,center, car_center = setup()
 reward_calculator = Reward(center)
 lidar_getter = LidarAcquisition(client, return_size=input_size)
 
-responses = lidar_getter.getPolar()
+responses = lidar_getter.getLidar()
 current_state = responses
 
 
@@ -143,9 +132,9 @@ while True:
 
         if current_step % save_increment == 0:
             print("saving model")
-            agent._trainer.save_checkpoint("reward_(e^-dy)_input_rtheta1d_2")
+            agent._trainer.save_checkpoint("xy")
 
-    responses = lidar_getter.getPolar()
+    responses = lidar_getter.getLidar()
     if len(responses) == input_size*2:
         current_state = responses
     else:

@@ -83,3 +83,26 @@ def graphPolar(r,theta):
     plt.plot(theta,r, 'ro')
     plt.axis([-np.pi/2, np.pi/2, 0, 60])
     plt.show()
+
+
+def interpret_action(action, client):
+    car_controls = airsim.CarControls()
+    car_speed = client.getCarState().speed
+    car_controls.throttle = -0.7
+    car_controls.is_manual_gear = True
+    car_controls.manual_gear = -1
+
+    if action == 0:
+        car_controls.steering = 1
+    elif action == 1:
+        car_controls.steering = -1
+    else:
+        car_controls.steering = 0
+    return car_controls
+
+
+def setRange():
+    r=0
+    theta_range =[-0.15, 0.15]
+    offset_range =[-r, r]
+    return theta_range, offset_range
