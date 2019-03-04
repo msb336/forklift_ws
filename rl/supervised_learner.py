@@ -24,12 +24,12 @@ def create_reader(path, is_training, input_dim, label_dim):
 
 
 # Creates and trains a feedforward classification model for MNIST images
-def lidar_trainer(debug_output=False, epoch_size=60000, minibatch_size=64, max_epochs=40):
+def lidar_trainer(debug_output=False, epoch_size=100000, minibatch_size=64, max_epochs=400):
     image_height = 484
     image_width  = 2
     num_channels = 1
     input_dim = image_height * image_width * num_channels
-    num_output_classes = 3
+    num_output_classes = 1
 
     # Input variables denoting the features and label data
     input_var = C.ops.input_variable((num_channels, image_height, image_width), np.float32)
@@ -39,6 +39,7 @@ def lidar_trainer(debug_output=False, epoch_size=60000, minibatch_size=64, max_e
     #scaled_input = C.ops.element_times(C.ops.constant(0.00390625), input_var)
 
     with C.layers.default_options(activation=C.ops.relu, pad=False):
+        #l1 = C.layers.Convolution2D((5,2), 32)(input_var)
         z     = C.layers.Dense(num_output_classes, activation=None)(input_var)
 
 
