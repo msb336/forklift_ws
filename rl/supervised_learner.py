@@ -46,7 +46,7 @@ def lidar_trainer(debug_output=False, epoch_size=60000, minibatch_size=64, max_e
     pe = C.metrics.classification_error(z, label_var)
 
     #reader_train = create_reader(os.path.join(data_path, 'Train-28x28_cntk_text.txt'), True, input_dim, num_output_classes)
-    #/ reader_train = create_reader( data file, True, input_dim, num_output_classes )
+    reader_train = create_reader( "lidar_train.txt", True, input_dim, num_output_classes )
 
     # Set learning parameters
     lr_per_sample    = [0.001]*10 + [0.0005]*10 + [0.0001]
@@ -77,11 +77,11 @@ def lidar_trainer(debug_output=False, epoch_size=60000, minibatch_size=64, max_e
 
         trainer.summarize_training_progress()
         #z.save(os.path.join(model_path, "ConvNet_MNIST_{}.dnn".format(epoch)))
-        #/ z.save(filename.format(epoch))
+        z.save("models/lidarcnn_noconvolutions_{}.dnn".format(epoch))
     
     # Load test data
     #reader_test = create_reader(os.path.join(data_path, 'Test-28x28_cntk_text.txt'), False, input_dim, num_output_classes)
-    #/ reader_test = create_reader( data file, True, input_dim, num_output_classes )
+    reader_test = create_reader( "lidar_test.txt", True, input_dim, num_output_classes )
 
 
     input_map = {

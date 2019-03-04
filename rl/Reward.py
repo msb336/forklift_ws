@@ -122,17 +122,20 @@ class Reward:
         self.reset(object_pose)
 
     def reset(self, object_pose):
+
+        self.calculateTransformToObjectFrame(object_pose)
+
+
+
+    def calculateTransformToObjectFrame(self, object_pose):
+        self.rotation_ = convertToEuler([object_pose.orientation.w_val, 
+                                     object_pose.orientation.x_val, 
+                                     object_pose.orientation.y_val, 
+                                     object_pose.orientation.z_val])
         self.center_ = [object_pose.position.x_val, object_pose.position.y_val]
-        quaternion = [object_pose.orientation.w_val, object_pose.orientation.x_val, object_pose.orientation.y_val, object_pose.orientation.z_val]
-        self.rotation_ = convertToEuler(quaternion)
-        self.calculateTransformToObjectFrame()
-
-
-
-    def calculateTransformToObjectFrame(self):
-        self.transform_matrix_ = np.matmul(np.array(([np.cos(self.rotation_), 
-                                                      -np.sin(self.rotation_),0], [np.sin(self.rotation_), 
-                                                       np.cos(self.rotation_),0],[0,0,1])), np.array(([1,0,-self.center_[0]], 
+        self.transform_matrix_ = np.matmul(np.array(([np.cos(-self.rotation_), 
+                                                      -np.sin(-self.rotation_),0], [np.sin(-self.rotation_), 
+                                                       np.cos(-self.rotation_),0],[0,0,1])), np.array(([1,0,-self.center_[0]], 
                                                         [0,1,-self.center_[1]],[0,0,1])))
     def getOffset(self, vehicle_pose):
         
@@ -153,7 +156,7 @@ class Reward:
 
     def getReward(self):
         beta = [0,0,5]
-        offset_reward = np.exp(-abs(self.y_offset_))
+        offset_reward = np.exp(-abs(self.y_offset_))-0.8
         angle_reward = -polynomial(self.angular_offset_, beta)
         reward = offset_reward #+ angle_reward
         return reward

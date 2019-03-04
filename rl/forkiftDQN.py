@@ -18,12 +18,13 @@ def interpret_action(action, client, distance):
     car_controls.is_manual_gear = True
     car_controls.manual_gear = -1
 
-    if action == 0:
-        car_controls.steering = 1
-    elif action == 1:
-        car_controls.steering = -1
-    else:
-        car_controls.steering = 0
+    car_controls.steering = action
+    #if action == 0:
+    #    car_controls.steering = 1
+    #elif action == 1:
+    #    car_controls.steering = -1
+    #else:
+    #    car_controls.steering = 0
     return car_controls
 
 def isDone(client, reward, distance, del_distance, time, time_threshold=10):
@@ -55,12 +56,12 @@ def isDone(client, reward, distance, del_distance, time, time_threshold=10):
 
 
 
-input_size=600
+input_size=484
  # Make RL agent
 NumBufferFrames = 4
 SizeRows = input_size*2
 SizeCols = 1
-NumActions = 3
+NumActions = 1
 agent = DeepQAgent((NumBufferFrames, SizeRows, SizeCols), NumActions, monitor=True, train_after=0)
 
 # Train
@@ -72,8 +73,13 @@ client,car_controls,center, car_center = setup()
 reward_calculator = Reward(center)
 lidar_getter = LidarAcquisition(client, return_size=input_size)
 
-responses = lidar_getter.getLidar()
-current_state = responses
+
+cont = False
+while cont == False:
+    x,y = lidar_getter.getLidar()
+    if x.size == input_size:
+        current_state = np.concatenate((x.reshape(-1,1), y.reshape(-1,1)))
+        cont = True
 
 
 tnow = time.clock()
@@ -103,12 +109,12 @@ while True:
 
 
     done, reward, successful = isDone(client, reward, distance, del_d, time.clock()-tnow)
+    print(reward)
     cumulative_reward += reward
 
 
     agent.observe(current_state, action, reward, done)
     
-
     if done:
         old_distance = np.inf
         current_step +=1
@@ -121,11 +127,11 @@ while True:
         agent.train()
 
         client.reset()
-        theta, offset = setRange(success)
+        theta, offset = setRange()
         random_pose = setRandomPose(client, center, offset, theta)[0]
         reward_calculator.reset(random_pose)
         setCar(client, car_center)
-        car_control = interpret_action(2,client, 4)
+        car_control = interpret_action(0,client, 4)
         client.setCarControls(car_control)
         tnow = time.clock()
         time.sleep(0.2)
@@ -133,9 +139,10 @@ while True:
         if current_step % save_increment == 0:
             print("saving model")
             agent._trainer.save_checkpoint("xy")
+            agent._action_value_net.save("xymodel")
 
-    responses = lidar_getter.getLidar()
-    if len(responses) == input_size*2:
-        current_state = responses
+    x,y = lidar_getter.getLidar()
+    if x.size == input_size:
+        current_state = np.concatenate((x.reshape(-1,1), y.reshape(-1,1)))
     else:
         print("didnt update")

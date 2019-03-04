@@ -1,5 +1,6 @@
-# import numpy as np
+import numpy as np
 
+# general pid controller
 class PID:
     kp=2
     ki=1
@@ -15,15 +16,17 @@ class PID:
     i_error=0
 
     control_input=0
-    def __init__(self, kp=0.1, ki=0.1, kd=0.1):
+    def __init__(self, kp=0.1, ki=0.1, kd=0.1, saturation=5):
         self.kp=kp
         self.ki=ki
         self.kd=kd
-        self.error
+        self.saturation = saturation
     def getIntegralError(self):
         if self.prev_time != 0:
             dt = self.time-self.prev_time
             self.i_error = self.i_error + (self.error+self.prev_error*0.5)*dt
+            if np.abs(self.i_error) > self.saturation:
+                self.i_error = np.sign(self.i_error)*self.saturation
     def getDerivativeError(self):
         if self.prev_time != 0:
             dt = self.time-self.prev_time
