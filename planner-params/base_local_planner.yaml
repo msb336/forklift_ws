@@ -9,5 +9,13 @@ max_vel_x: 5
 max_vel_x_backwards: 2
 max_vel_theta: 5
 map_frame: /enu
+dt_ref: 0.6
+no_inner_iterations: 1
+no_outer_iterations: 1
 
+enable_homotopy_class_planning: false
+
+weight_acc_lim_x: 0.0
+weight_acc_lim_y: 0.0
+weight_acc_lim_theta: 0.0
 weight_kinematics_forward_drive: 1000
