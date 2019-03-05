@@ -13,6 +13,7 @@
     <node pkg="teb_local_planner" type="cmd_vel_to_ackermann_drive.py" name="control_converter" />
     <node pkg="move_base" type="move_base" name="move_base" >
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="global_costmap" />
+	<remap from="move_base_simple/goal" to="airsim/goal" />
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="local_costmap" />
         <rosparam file="planner-params/local_costmap_params.yaml" command="load" />
         <rosparam file="planner-params/global_costmap_params.yaml" command="load" />
