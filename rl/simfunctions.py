@@ -93,7 +93,11 @@ def interpret_action(action, client):
     car_controls.manual_gear = -1
     if np.abs(action) > 0.001 and np.abs(action) < 0.1:
         action = np.sign(action)*0.1
+    elif action == 2:
+        car_controls.throttle = 0
+        action = 0
     car_controls.steering = action
+
     #if action == 0:
     #    car_controls.steering = 0.25
     #elif action == 1:

@@ -12,6 +12,8 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 
+from std_msgs.msg import Bool
+
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TwistStamped, Twist
 from geometry_msgs.msg import Point
@@ -21,6 +23,9 @@ from tf_conversions import transformations
 import math
 from std_srvs.srv import Empty, EmptyResponse
 
+import sys
+sys.path.append('../../../rl')
+from SimpleController import *
 
 class NeuralNetworkController:
     def __init__(self):
@@ -36,22 +41,27 @@ class NeuralNetworkController:
         self.mono_cam_img_sub = rospy.Subscriber('/airsim/mono/image_raw', Image, self.mono_cam_cb)
         self.depth_img_sub = rospy.Subscriber("/airsim/depth", Image, self.depth_img_cb)
         self.lidar_sub = rospy.Subscriber('/airsim/lidar', PointCloud2, self.lidar_cb)
-        self.vehicle_command_pub = rospy.Publisher('/ackermann_cmd', AckermannDriveStamped, queue_size=1)
-        
+        self.vehicle_command_pub = rospy.Publisher('/car_cmd', AckermannDriveStamped, queue_size=1)
+        self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
+        self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
+
+        controller = SimpleController(pallet_spot)
+        [init_offset, angle, init_dist] = controller.getOffset(car_spot)
+        planner = ForkliftPlanner(pallet_spot, init_dist, init_offset)
         
 
     def update(self):
-        # Plan
-        speed, steering_angle = self.control()
-        # send message to controller
-    #    vehicle_command_message = self.setVehicleCommandMessage(speed, steering_angle)
-    #    self.vehicle_command_pub.publish(vehicle_command_message)
-
-    # build your controller here
+        if self.control == True:
+            self.control()
+            command_msg = self.setVehicleCommandMessage()
+            self.vehicle_command_pub.publish(command_msg)
     def control(self):
-        speed = []
-        steering_angle = []
+        local_goal, global_goal = planner.update(self.sim_pose)
+        steering_angle = controller.calculateMotorControl(local_goal)
+        speed = -1
         return speed, steering_angle
+
+
     def setVehicleCommandMessage(self, speed, steering_angle):
         msg = AckermannDriveStamped()
         msg.header.stamp = rospy.get_rostime()
@@ -60,11 +70,11 @@ class NeuralNetworkController:
         msg.drive.speed = speed
         return msg
 
-    def odom_enu_cb(self, odom_msg):
-        self.odom_enu = odom_msg.pose.pose
+    #def odom_enu_cb(self, odom_msg):
+    #    self.odom_enu = odom_msg.pose.pose
 
-    def odom_ned_cb(self, odom_msg):
-        self.odom_ned = odom_msg.pose.pose
+    #def odom_ned_cb(self, odom_msg):
+    #    self.odom_ned = odom_msg.pose.pose
 
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
@@ -78,11 +88,22 @@ class NeuralNetworkController:
         orientation.y_val = sim_pose_msg.pose.orientation.y
         orientation.z_val = sim_pose_msg.pose.orientation.z
         self.sim_pose = Pose(pos, orientation)
-
-    def mono_cam_cb(self, image_msg):
-        self.mono_img = np.fromstring(image_msg.data, np.uint8)
-    def depth_img_cb(self, depth_image_msg):
-        self.depth_img = np.fromstring(depth_image_msg.data, np.uint8)
-    def lidar_cb(self, pointcloud_msg):
+    def pallet_cb(self, pallet_pose_msg):
+        pos = Vector3r()
+        orientation = Quaternionr()
         
-        self.lidar_pointcloud = pc2.read_points(pointcloud_msg, skip_nans=True, field_names=("x", "y", "z"))
+        pos.x_val = pallet_pose_msg.pose.position.x
+        pos.y_val = pallet_pose_msg.pose.position.y
+        pos.z_val = pallet_pose_msg.pose.position.z
+        orientation.w_val = pallet_pose_msg.pose.orientation.w
+        orientation.x_val = pallet_pose_msg.pose.orientation.x
+        orientation.y_val = pallet_pose_msg.pose.orientation.y
+        orientation.z_val = pallet_pose_msg.pose.orientation.z
+        self.pallet_pose = Pose(pos, orientation)
+
+    def control_cb(self, bool_msg):
+        if bool_msg.data == True:
+            controller = SimpleController(self.pallet_pose)
+            [init_offset, angle, init_dist] = controller.getOffset(self.sim_pose)
+            self.planner = ForkliftPlanner(pallet_spot, init_dist, init_offset)
+            self.control = True
