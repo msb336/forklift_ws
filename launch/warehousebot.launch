@@ -1,8 +1,4 @@
 <launch>
-<!-- Localization -->
-  <!-- <node pkg="amcl" type="amcl" name="amcl" output="screen"/> -->
-  <!-- </node> -->
-
     <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" output="screen"/>
     <node pkg="tf" type="static_transform_publisher" name="enu_tf" args="0 0 0 1 0 0 0 /world /enu 100" />
     <node pkg="costmap_2d" type="costmap_2d_node" name="costmap_node" output="log">
@@ -11,7 +7,7 @@
         <rosparam file="planner-params/global_costmap_params.yaml" command="load"  />
 
     </node>
-    <node pkg="teb_local_planner" type="cmd_vel_to_ackermann_drive.py" name="control_converter" />
+    <node pkg="airsim_ros_pkgs" type="ackermann_converter_node.py" name="control_converter" />
     <node pkg="move_base" type="move_base" name="move_base" >
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="global_costmap" />
 	<remap from="move_base_simple/goal" to="airsim/goal" />
@@ -19,8 +15,8 @@
         <rosparam file="planner-params/local_costmap_params.yaml" command="load" />
         <rosparam file="planner-params/global_costmap_params.yaml" command="load" />
         <rosparam file="planner-params/traj_planner.yaml" command="load" />
-        <rosparam file="planner-params/base_local_planner.yaml" command="load" />
-        <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" />
+	<rosparam file="planner-params/global_planner_params.yaml" command="load" />
+	<param name="global_planner" value="global_planner/GlobalPlanner" />
         <param name="controller_frequency" value="10.0" />
         <param name="planner_frequency" value="10.0" />
     </node>

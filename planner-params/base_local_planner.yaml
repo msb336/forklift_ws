@@ -1,13 +1,17 @@
 footprint_model: # types: "point", "circular", "two_circles", "line", "polygon"
-   type: "polygon"
-   vertices: [[-1.5, -0.4], [-1.5, 0.4], [0.5,0.4],[0.5,-0.4]] # for type "polygon"
+   type: "point"
+   #vertices: [[-1.5, -0.4], [-1.5, 0.4], [0.5,0.4],[0.5,-0.4]] # for type "polygon"
 
-min_obstacle_dist: 0.3
-min_turing_radius: 0.1
+min_obstacle_dist: 0.5
+min_turing_radius: 0
 
-max_vel_x: 5
-max_vel_x_backwards: 2
-max_vel_theta: 5
+xy_goal_tolerance: 0.5
+yaw_goal_tolerance: 0.2
+max_vel_x: 1
+max_vel_x_backwards: 1
+max_vel_theta: 10
+acc_lim_theta: 10
+acc_lim_x: 100
 map_frame: /enu
 dt_ref: 0.6
 no_inner_iterations: 1
