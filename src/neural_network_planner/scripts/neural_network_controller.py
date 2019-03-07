@@ -3,6 +3,7 @@ from airsim.types import Pose, Vector3r, Quaternionr
 import rospy
 import numpy as np
 from ackermann_msgs.msg import AckermannDriveStamped
+from tf2_geometry_msgs import PointStamped
 from geometry_msgs.msg import PoseStamped, PointStamped
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
@@ -54,7 +55,7 @@ class NeuralNetworkController:
     def control(self):
         local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
         global_msg = self.setPointMsg(global_goal)
-        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link')
+        local_goal_msg = self.tf_buffer.transform(global_msg, '/base_link')
         local_goal[0] = local_goal_msg.pose.position.x
         local_goal[1] = local_goal_msg.pose.position.y
 
@@ -74,17 +75,7 @@ class NeuralNetworkController:
         msg.drive.steering_angle = steering_angle
         msg.drive.speed = speed
         return msg
-    def setPoseMsg(self, pose, frame='/base_link'):
-        msg = PoseStamped()
-        msg.header.stamp = rospy.get_rostime()
-        msg.header.frame_id = frame
-        msg.pose.position.x = pose[0]
-        msg.pose.position.y = pose[1]
-        msg.pose.position.z = 0
-        msg.pose.orientation.w = 1
-        msg.pose.orientation.x = 0
-        msg.pose.orientation.y = 0
-        msg.pose.orientation.z = 0
+
     def setPointMsg(self, waypoint, frame='/world'):
         msg = PointStamped()
         msg.header.stamp = rospy.get_rostime()
