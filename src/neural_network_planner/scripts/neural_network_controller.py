@@ -26,7 +26,10 @@ from std_srvs.srv import Empty, EmptyResponse
 import sys
 sys.path.append('/home/matt/forklift_ws/rl')
 from SimpleController import *
-
+def printPose(pose, name = ""):
+    print("{} pose:".format(name))
+    print("position ({}, {}, {}".format( pose.position.x_val, pose.position.y_val, pose.position.z_val))
+    print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val)
 class NeuralNetworkController:
     control_implemented = False
     def __init__(self):
@@ -40,6 +43,8 @@ class NeuralNetworkController:
 
     def update(self):
         if self.control_implemented == True:
+            print(self.sim_pose, "forklift")
+            print(self.pallet_pose, "pallet")
             speed, angle = self.control()
             command_msg = self.setVehicleCommandMessage(speed, angle)
             self.vehicle_command_pub.publish(command_msg)
@@ -59,12 +64,6 @@ class NeuralNetworkController:
         msg.drive.steering_angle = steering_angle
         msg.drive.speed = speed
         return msg
-
-    #def odom_enu_cb(self, odom_msg):
-    #    self.odom_enu = odom_msg.pose.pose
-
-    #def odom_ned_cb(self, odom_msg):
-    #    self.odom_ned = odom_msg.pose.pose
 
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
@@ -97,4 +96,3 @@ class NeuralNetworkController:
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
             self.planner = ForkliftPlanner(self.pallet_pose, init_dist, init_offset)
             self.control_implemented = True
-            print('initial pallet pose', self.pallet_pose, '\n initial offsets:', init_offset, angle, init_dist)

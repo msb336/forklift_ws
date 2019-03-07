@@ -107,7 +107,7 @@ def forkTransform(forklift_pose):
                                      forklift_pose.orientation.x_val, 
                                      forklift_pose.orientation.y_val, 
                                      forklift_pose.orientation.z_val])
-    return forklift_x - 0.1*np.cos(rotation_angle), forklift_y -0.5*np.sin(rotation_angle)
+    return forklift_x - 0.5*np.cos(rotation_angle), forklift_y -0.5*np.sin(rotation_angle)
 
 class Reward:
     center_ =[0,0]
@@ -145,6 +145,8 @@ class Reward:
         self.distance_ = pose_in_object_frame[0][0]
 
         vehicle_rotation = _euler_from_quaternion([vehicle_pose.orientation.w_val, vehicle_pose.orientation.x_val, vehicle_pose.orientation.y_val, vehicle_pose.orientation.z_val])[2]
+        raw = vehicle_rotation
+        
         vehicle_rotation = vehicle_rotation - np.sign(vehicle_rotation)*np.pi
         del_rot = min(abs(self.rotation_-vehicle_rotation), abs(-vehicle_rotation - self.rotation_), abs(vehicle_rotation-self.rotation_))
 
@@ -152,6 +154,8 @@ class Reward:
             self.angular_offset_ = del_rot - np.pi
         else:
             self.angular_offset_ = del_rot
+        print("raw rotation", raw, "altered rotation", vehicle_rotation, "del rotation", del_rot, "error", self.angular_offset_)
+
         return [self.y_offset_, self.angular_offset_, self.distance_]
 
     def getReward(self):
