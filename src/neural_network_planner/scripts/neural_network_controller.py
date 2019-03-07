@@ -3,7 +3,7 @@ from airsim.types import Pose, Vector3r, Quaternionr
 import rospy
 import numpy as np
 from ackermann_msgs.msg import AckermannDriveStamped
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from rosgraph_msgs.msg import Clock
@@ -39,18 +39,20 @@ class NeuralNetworkController:
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
+        self.waypoint_pub = rospy.Publisher('/ml_waypoint', Point, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
     def update(self):
         if self.control_implemented == True:
-            print(self.sim_pose, "forklift")
-            print(self.pallet_pose, "pallet")
+            #printPose(self.sim_pose, "forklift")
+            #printPose(self.pallet_pose, "pallet")
             speed, angle = self.control()
             command_msg = self.setVehicleCommandMessage(speed, angle)
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
         local_goal, global_goal = self.planner.update(self.sim_pose)
-        
+        self.publishPointMsg(global_goal)
+
         steering_angle = self.controller.calculateMotorControl(local_goal)
         print(local_goal, steering_angle)
         speed = -0.65
@@ -64,7 +66,12 @@ class NeuralNetworkController:
         msg.drive.steering_angle = steering_angle
         msg.drive.speed = speed
         return msg
-
+    def publishPointMsg(self, waypoint):
+        msg = Point()
+        msg.x = waypoint[0]
+        msg.y = waypoint[1]
+        msg.z = 0
+        self.waypoint_pub.publish(msg)
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
         orientation = Quaternionr()
