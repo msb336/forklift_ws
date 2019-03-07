@@ -16,8 +16,8 @@ class SimpleController(Reward):
     pid_control = PID(5,0.02,0.01,2)
     def calculateMotorControl(self, goal):
         des_angle = np.arctan(goal[1]/goal[0]) - np.pi/2
-        if goal[0] < 0:
-            des_angle -= np.sign(des_angle)*np.pi
+        #if goal[0] < 0:
+        #    des_angle -= np.sign(des_angle)*np.pi
         input = clip(self.pid_control.update(des_angle, 0, time.clock())[0])
 
 

@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" />
+    <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" output="screen"/>
     <node pkg="tf" type="static_transform_publisher" name="enu_tf" args="0 0 0 1 0 0 0 /world /enu 100" />
     <node pkg="costmap_2d" type="costmap_2d_node" name="costmap_node" output="log">
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="costmap" />
