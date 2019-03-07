@@ -39,14 +39,12 @@ class NeuralNetworkController:
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
-        self.waypoint_pub = rospy.Publisher('/ml/waypoint', PointStamped, queue_size=10)
+        self.local_waypoint_pub = rospy.Publisher('/ml/local_waypoint', PointStamped, queue_size=10)
         self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
     def update(self):
         if self.control_implemented == True:
-            #printPose(self.sim_pose, "forklift")
-            #printPose(self.pallet_pose, "pallet")
             speed, angle = self.control()
             command_msg = self.setVehicleCommandMessage(speed, angle)
             
@@ -55,9 +53,9 @@ class NeuralNetworkController:
         local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
         steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
 
-        self.publishPointMsg(global_goal)
-        self.publishPoseMsg(goal_angle+yaw)
-
+        self.publishPoseMsg(goal_angle)
+        local_waypoint_msg = self.setPointMsg(local_goal, "/base_link")
+        self.local_waypoint_pub.publish(local_waypoint_msg)
         speed = -0.65
         return speed, steering_angle
 
@@ -69,14 +67,14 @@ class NeuralNetworkController:
         msg.drive.steering_angle = steering_angle
         msg.drive.speed = speed
         return msg
-    def publishPointMsg(self, waypoint):
+    def setPointMsg(self, waypoint, frame='/world'):
         msg = PointStamped()
         msg.header.stamp = rospy.get_rostime()
-        msg.header.frame_id = '/world'
+        msg.header.frame_id = frame
         msg.point.x = waypoint[0]
         msg.point.y = waypoint[1]
         msg.point.z = 0
-        self.waypoint_pub.publish(msg)
+        return msg
     def publishPoseMsg(self, goal_angle):
         msg = PoseStamped()
         msg.header.stamp = rospy.get_rostime()
