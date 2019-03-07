@@ -42,7 +42,9 @@ class NeuralNetworkController:
         self.local_waypoint_pub = rospy.Publisher('/ml/local_waypoint', PointStamped, queue_size=10)
         self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
-
+        
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
     def update(self):
         if self.control_implemented == True:
             speed, angle = self.control()
@@ -51,11 +53,16 @@ class NeuralNetworkController:
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
         local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
-        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
+        global_msg = self.setPointMsg(global_goal)
+        local_goal_msg = self.tf_buffer.transform(gloabl_msg, 'base_link')
+        local_goal[0] = local_goal_msg.point.x
+        local_goal[1] = local_goal_msg.point.y
 
+        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
         self.publishPoseMsg(goal_angle)
+        
         local_waypoint_msg = self.setPointMsg(local_goal, "/base_link")
-        self.local_waypoint_pub.publish(local_waypoint_msg)
+        self.local_waypoint_pub.publish(local_goal_msg)
         speed = -0.65
         return speed, steering_angle
 
