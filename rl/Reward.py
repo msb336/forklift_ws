@@ -154,7 +154,6 @@ class Reward:
             self.angular_offset_ = del_rot - np.pi
         else:
             self.angular_offset_ = del_rot
-        print("raw rotation", raw, "altered rotation", vehicle_rotation, "del rotation", del_rot, "error", self.angular_offset_)
 
         return [self.y_offset_, self.angular_offset_, self.distance_]
 

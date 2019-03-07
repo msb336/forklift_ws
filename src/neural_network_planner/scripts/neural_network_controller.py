@@ -3,7 +3,7 @@ from airsim.types import Pose, Vector3r, Quaternionr
 import rospy
 import numpy as np
 from ackermann_msgs.msg import AckermannDriveStamped
-from geometry_msgs.msg import PoseStamped, Point
+from geometry_msgs.msg import PoseStamped, PointStamped
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from rosgraph_msgs.msg import Clock
@@ -29,7 +29,7 @@ from SimpleController import *
 def printPose(pose, name = ""):
     print("{} pose:".format(name))
     print("position ({}, {}, {}".format( pose.position.x_val, pose.position.y_val, pose.position.z_val))
-    print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val)
+    print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val))
 class NeuralNetworkController:
     control_implemented = False
     def __init__(self):
@@ -39,7 +39,7 @@ class NeuralNetworkController:
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
-        self.waypoint_pub = rospy.Publisher('/ml_waypoint', Point, queue_size=10)
+        self.waypoint_pub = rospy.Publisher('/ml_waypoint', PointStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
     def update(self):
@@ -54,7 +54,7 @@ class NeuralNetworkController:
         self.publishPointMsg(global_goal)
 
         steering_angle = self.controller.calculateMotorControl(local_goal)
-        print(local_goal, steering_angle)
+        #print(local_goal, steering_angle)
         speed = -0.65
         return speed, steering_angle
 
@@ -67,10 +67,12 @@ class NeuralNetworkController:
         msg.drive.speed = speed
         return msg
     def publishPointMsg(self, waypoint):
-        msg = Point()
-        msg.x = waypoint[0]
-        msg.y = waypoint[1]
-        msg.z = 0
+        msg = PointStamped()
+        msg.header.stamp = rospy.get_rostime()
+        msg.header.frame_id = '/world'
+        msg.point.x = waypoint[0]
+        msg.point.y = waypoint[1]
+        msg.point.z = 0
         self.waypoint_pub.publish(msg)
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
