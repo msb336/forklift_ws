@@ -22,7 +22,7 @@ obstacle_layer:
   footprint_clearing_enable: false
 
 inflation_layer:
-  inflation_radius: 0
+  inflation_radius: 0.2
   cost_scaling_factor: 5.0
 
 static_layer:

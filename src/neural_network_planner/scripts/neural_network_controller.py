@@ -55,7 +55,7 @@ class NeuralNetworkController:
     def control(self):
         local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
         global_msg = self.setPointMsg(global_goal)
-        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link')
+        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
         local_goal[0] = local_goal_msg.point.x
         local_goal[1] = local_goal_msg.point.y
 
