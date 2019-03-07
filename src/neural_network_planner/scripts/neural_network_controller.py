@@ -40,7 +40,7 @@ class NeuralNetworkController:
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
         self.waypoint_pub = rospy.Publisher('/ml/waypoint', PointStamped, queue_size=10)
-        self.goal_pose_pub = rospy.Publish('/ml/goal_pose', PoseStamped, queue_size=10)
+        self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
     def update(self):
