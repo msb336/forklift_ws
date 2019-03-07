@@ -53,9 +53,8 @@ class NeuralNetworkController:
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
         local_goal, global_goal = self.planner.update(self.sim_pose)
-        steering_angle = -self.controller.calculateMotorControl(local_goal)
+        steering_angle = self.controller.calculateMotorControl(local_goal)
         speed = -0.65
-        print(speed, steering_angle)
         return speed, steering_angle
 
 
