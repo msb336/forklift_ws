@@ -31,17 +31,9 @@ class NeuralNetworkController:
     control_implemented = False
     def __init__(self):
         self.setup_ros()
-        # initialize your controller
     
     def setup_ros(self):
-        # This is where we subscribe to our ROS topics there are other topics you may want to add, like the costmap, or the current plan
-        #self.odom_enu_sub = rospy.Subscriber('/airsim/odom_enu', Odometry, self.odom_enu_cb)
-        #self.odom_ned_sub = rospy.Subscriber('/airsim/odom_ned', Odometry, self.odom_ned_cb)
-
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
-        #self.mono_cam_img_sub = rospy.Subscriber('/airsim/mono/image_raw', Image, self.mono_cam_cb)
-        #self.depth_img_sub = rospy.Subscriber("/airsim/depth", Image, self.depth_img_cb)
-        #self.lidar_sub = rospy.Subscriber('/airsim/lidar', PointCloud2, self.lidar_cb)
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
@@ -53,7 +45,9 @@ class NeuralNetworkController:
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
         local_goal, global_goal = self.planner.update(self.sim_pose)
+        
         steering_angle = self.controller.calculateMotorControl(local_goal)
+        print(local_goal, steering_angle)
         speed = -0.65
         return speed, steering_angle
 
@@ -103,3 +97,4 @@ class NeuralNetworkController:
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
             self.planner = ForkliftPlanner(self.pallet_pose, init_dist, init_offset)
             self.control_implemented = True
+            print('initial pallet pose', self.pallet_pose, '\n initial offsets:', init_offset, angle, init_dist)
