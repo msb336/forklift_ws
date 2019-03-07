@@ -21,7 +21,7 @@ class SimpleController(Reward):
         input = clip(self.pid_control.update(des_angle, 0, time.clock())[0])
 
 
-        return input
+        return input, des_angle
 
 
 
@@ -109,7 +109,7 @@ class ForkliftPlanner():
         self.getForkliftGlobalPose(forklift_pose)
         self.calculateForkliftTransform()
         self.setGoal()
-        return self.goalToForkliftFrame(), self.global_goal
+        return self.goalToForkliftFrame(), self.global_goal, self.global_orientation
         
         
 

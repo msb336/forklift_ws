@@ -39,7 +39,8 @@ class NeuralNetworkController:
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
-        self.waypoint_pub = rospy.Publisher('/ml_waypoint', PointStamped, queue_size=10)
+        self.waypoint_pub = rospy.Publisher('/ml/waypoint', PointStamped, queue_size=10)
+        self.goal_pose_pub = rospy.Publish('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
     def update(self):
@@ -48,13 +49,15 @@ class NeuralNetworkController:
             #printPose(self.pallet_pose, "pallet")
             speed, angle = self.control()
             command_msg = self.setVehicleCommandMessage(speed, angle)
+            
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
-        local_goal, global_goal = self.planner.update(self.sim_pose)
-        self.publishPointMsg(global_goal)
+        local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
+        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
 
-        steering_angle = self.controller.calculateMotorControl(local_goal)
-        #print(local_goal, steering_angle)
+        self.publishPointMsg(global_goal)
+        self.publishPoseMsg(goal_angle+yaw)
+
         speed = -0.65
         return speed, steering_angle
 
@@ -74,6 +77,19 @@ class NeuralNetworkController:
         msg.point.y = waypoint[1]
         msg.point.z = 0
         self.waypoint_pub.publish(msg)
+    def publishPoseMsg(self, goal_angle):
+        msg = PoseStamped()
+        msg.header.stamp = rospy.get_rostime()
+        msg.header.frame_id = '/world'
+        msg.pose.position.x = self.sim_pose.position.x_val
+        msg.pose.position.y = self.sim_pose.position.y_val
+        msg.pose.position.z = self.sim_pose.position.z_val
+
+        msg.pose.orientation.x = 0
+        msg.pose.orientation.y = 0
+        msg.pose.orientation.z = np.sign(goal_angle/2)
+        msg.pose.orientation.w = np.cos(goal_angle)
+        self.goal_pose_pub.publish(msg)
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
         orientation = Quaternionr()
