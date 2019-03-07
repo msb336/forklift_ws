@@ -114,7 +114,7 @@ def linearExtension(x,y, q, distance):
                                      q[1], 
                                      q[2], 
                                      q[3]])
-    print(x,y, distance, rotation_angle)
+    #print(x,y, distance, rotation_angle)
     return x + distance*np.cos(rotation_angle), y + distance*np.sin(rotation_angle)
 
 def createPose(center, z_rotation):

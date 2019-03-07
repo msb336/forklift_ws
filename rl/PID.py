@@ -30,7 +30,10 @@ class PID:
     def getDerivativeError(self):
         if self.prev_time != 0:
             dt = self.time-self.prev_time
-            self.d_error = (self.error-self.prev_error)/dt
+            if dt > 0:
+                self.d_error = (self.error-self.prev_error)/dt
+            else:
+                self.d_error = 0
     def updateControl(self):
         self.getIntegralError()
         self.getDerivativeError()

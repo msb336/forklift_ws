@@ -42,7 +42,7 @@ class NeuralNetworkController:
         #self.mono_cam_img_sub = rospy.Subscriber('/airsim/mono/image_raw', Image, self.mono_cam_cb)
         #self.depth_img_sub = rospy.Subscriber("/airsim/depth", Image, self.depth_img_cb)
         #self.lidar_sub = rospy.Subscriber('/airsim/lidar', PointCloud2, self.lidar_cb)
-        self.vehicle_command_pub = rospy.Publisher('/car_cmd', AckermannDriveStamped, queue_size=1)
+        self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
         self.vehicle_command_sub = rospy.Subscriber('/airsim/control_handoff', Bool, self.control_cb)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
 
@@ -53,8 +53,9 @@ class NeuralNetworkController:
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
         local_goal, global_goal = self.planner.update(self.sim_pose)
-        steering_angle = self.controller.calculateMotorControl(local_goal)
-        speed = -1
+        steering_angle = -self.controller.calculateMotorControl(local_goal)
+        speed = -0.65
+        print(speed, steering_angle)
         return speed, steering_angle
 
 
