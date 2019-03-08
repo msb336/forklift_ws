@@ -81,7 +81,7 @@ class LogicDistributor:
         self.setup_ros()
     
     def setup_ros(self):
-        self.delivery_sub = rospy.Subscriber("/pickup", Pose, self.pickup_cb)
+        self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
 
         self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
         self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
