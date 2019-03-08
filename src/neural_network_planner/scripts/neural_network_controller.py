@@ -95,7 +95,7 @@ class NeuralNetworkController:
 
         msg.pose.orientation.x = 0
         msg.pose.orientation.y = 0
-        msg.pose.orientation.z = np.sign(goal_angle/2)
+        msg.pose.orientation.z = np.sin(goal_angle/2)
         msg.pose.orientation.w = np.cos(goal_angle)
         self.goal_pose_pub.publish(msg)
     def pose_cb(self, sim_pose_msg):
