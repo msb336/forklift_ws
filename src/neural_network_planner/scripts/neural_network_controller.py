@@ -27,12 +27,18 @@ from std_srvs.srv import Empty, EmptyResponse
 import sys
 sys.path.append('/home/matt/forklift_ws/rl')
 from SimpleController import *
+
+
+
 def printPose(pose, name = ""):
     print("{} pose:".format(name))
     print("position ({}, {}, {}".format( pose.position.x_val, pose.position.y_val, pose.position.z_val))
     print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val))
+
 class NeuralNetworkController:
     control_implemented = False
+    fork_position = False
+    aligned = False
     def __init__(self):
         self.setup_ros()
     
@@ -44,6 +50,8 @@ class NeuralNetworkController:
         self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
         
+        self.forklift_pub = rospy.Publisher('/airsim/forks', Int8)
+
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
@@ -51,8 +59,9 @@ class NeuralNetworkController:
         if self.control_implemented == True:
             speed, angle = self.control()
             command_msg = self.setVehicleCommandMessage(speed, angle)
-            
             self.vehicle_command_pub.publish(command_msg)
+
+            
     def control(self):
         global_goal, distance_from_pallet = self.planner.update(self.sim_pose)
         print(distance_from_pallet)
@@ -70,7 +79,17 @@ class NeuralNetworkController:
             speed = -0.65
         else:
             speed = 0
+            self.lift()
+
         return speed, steering_angle
+
+    def lift(self):
+        if self.aligned == False:
+            self.aligned = True
+            self.forklift_pub.publish(1)
+            time.sleep(3)
+            self.forklift_pub.publish(0)
+            
 
 
     def setVehicleCommandMessage(self, speed, steering_angle):
@@ -102,6 +121,7 @@ class NeuralNetworkController:
         msg.pose.orientation.z = np.sin(goal_angle/2)
         msg.pose.orientation.w = np.cos(goal_angle)
         self.goal_pose_pub.publish(msg)
+
     def pose_cb(self, sim_pose_msg):
         pos = Vector3r()
         orientation = Quaternionr()
@@ -114,6 +134,7 @@ class NeuralNetworkController:
         orientation.y_val = sim_pose_msg.pose.orientation.y
         orientation.z_val = sim_pose_msg.pose.orientation.z
         self.sim_pose = Pose(pos, orientation)
+
     def pallet_cb(self, pallet_pose_msg):
         pos = Vector3r()
         orientation = Quaternionr()
