@@ -13,7 +13,7 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int8
 
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TwistStamped, Twist
@@ -50,7 +50,7 @@ class NeuralNetworkController:
         self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.pallet_sub = rospy.Subscriber('/airsim/pallet_pose', PoseStamped, self.pallet_cb)
         
-        self.forklift_pub = rospy.Publisher('/airsim/forks', Int8)
+        self.forklift_pub = rospy.Publisher('/airsim/forks', Int8, queue_size=1)
 
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -64,7 +64,6 @@ class NeuralNetworkController:
             
     def control(self):
         global_goal, distance_from_pallet = self.planner.update(self.sim_pose)
-        print(distance_from_pallet)
         global_msg = self.setPointMsg(global_goal)
         local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
 
@@ -87,8 +86,6 @@ class NeuralNetworkController:
         if self.aligned == False:
             self.aligned = True
             self.forklift_pub.publish(1)
-            time.sleep(3)
-            self.forklift_pub.publish(0)
             
 
 
