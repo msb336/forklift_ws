@@ -41,6 +41,8 @@ class ForkliftPlanner():
         self.global_position = np.asarray(([x], [y], [1]))
         quaternion = [global_pose.orientation.w_val, global_pose.orientation.x_val, global_pose.orientation.y_val, global_pose.orientation.z_val]
         self.global_orientation = convertToEuler(quaternion)
+
+
     def calculateForkliftTransform(self):
         self.transform = np.matmul(np.array(([np.cos(self.global_orientation), 
                                                       -np.sin(self.global_orientation),0], [np.sin(self.global_orientation), 
@@ -92,7 +94,8 @@ class ForkliftPlanner():
 
     def setGoal(self):
         forklift_in_goal_frame = self.global_to_pallet(self.global_position)
-        goal_point = np.asarray(([forklift_in_goal_frame[0][0] - 0.7], [0], [1] ))
+        self.distance = forklift_in_goal_frame[0][0]
+        goal_point = np.asarray(([self.distance - 0.7], [0], [1] ))
         self.global_goal = self.pallet_to_global(goal_point)
 
 
@@ -109,7 +112,7 @@ class ForkliftPlanner():
         self.getForkliftGlobalPose(forklift_pose)
         self.calculateForkliftTransform()
         self.setGoal()
-        return self.goalToForkliftFrame(), self.global_goal, self.global_orientation
+        return self.global_goal, self.distance
         
         
 

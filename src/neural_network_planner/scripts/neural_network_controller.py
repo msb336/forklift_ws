@@ -46,6 +46,7 @@ class NeuralNetworkController:
         
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
     def update(self):
         if self.control_implemented == True:
             speed, angle = self.control()
@@ -53,14 +54,16 @@ class NeuralNetworkController:
             
             self.vehicle_command_pub.publish(command_msg)
     def control(self):
-        local_goal, global_goal, yaw = self.planner.update(self.sim_pose)
+        global_goal, distance_from_pallet = self.planner.update(self.sim_pose)
+        print(distance_from_pallet)
         global_msg = self.setPointMsg(global_goal)
-        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link')
+        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
+
+
         local_goal[0] = local_goal_msg.point.x
         local_goal[1] = local_goal_msg.point.y
 
         steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
-        print(goal_angle)
         self.publishPoseMsg(goal_angle)
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
@@ -110,7 +113,6 @@ class NeuralNetworkController:
         orientation.y_val = sim_pose_msg.pose.orientation.y
         orientation.z_val = sim_pose_msg.pose.orientation.z
         self.sim_pose = Pose(pos, orientation)
-        self.transform_time = sim_pose_msg.header.stamp
     def pallet_cb(self, pallet_pose_msg):
         pos = Vector3r()
         orientation = Quaternionr()
