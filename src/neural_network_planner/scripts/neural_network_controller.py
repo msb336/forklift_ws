@@ -59,15 +59,17 @@ class NeuralNetworkController:
         global_msg = self.setPointMsg(global_goal)
         local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
 
-        local_goal[0] = local_goal_msg.point.x
-        local_goal[1] = local_goal_msg.point.y
+        local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
 
         steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
         self.publishPoseMsg(goal_angle)
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
         self.local_waypoint_pub.publish(local_goal_msg)
-        speed = -0.65
+        if distance_from_pallet > 0.5:
+            speed = -0.65
+        else:
+            speed = 0
         return speed, steering_angle
 
 

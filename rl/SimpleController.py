@@ -13,14 +13,14 @@ def clip(value):
         value = -1
     return value
 class SimpleController(Reward):
-    pid_control = PID(3,0.03,0.01,2)
+    pid_control = PID(2,0.05,0.01,2)
     def calculateMotorControl(self, goal):
         des_angle = np.arctan(goal[1]/goal[0]) 
         if goal[0] > 0:
             des_angle -= np.sign(des_angle)*np.pi
 
-        input = clip(self.pid_control.update(des_angle, 0, time.clock())[0])
-        print(goal[0][0], goal[1][0], des_angle[0])
+        input = clip(self.pid_control.update(des_angle, 0, time.clock()))
+        #print(goal[0], goal[1], des_angle)
 
         return input, des_angle
 
@@ -96,7 +96,7 @@ class ForkliftPlanner():
     def setGoal(self):
         forklift_in_goal_frame = self.global_to_pallet(self.global_position)
         self.distance = forklift_in_goal_frame[0][0]
-        goal_point = np.asarray(([self.distance - 0.7], [0], [1] ))
+        goal_point = np.asarray(([self.distance - 1], [0], [1] ))
         self.global_goal = self.pallet_to_global(goal_point)
 
 
