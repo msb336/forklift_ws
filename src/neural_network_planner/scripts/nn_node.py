@@ -3,7 +3,7 @@ from neural_network_controller import NeuralNetworkController
 import rospy
 
 rospy.init_node('nn_node', anonymous=False)
-loop_rate = 10 
+loop_rate = 5 
 rate = rospy.Rate(loop_rate)
 neural_network_controller = NeuralNetworkController()
 
