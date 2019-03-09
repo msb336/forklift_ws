@@ -81,7 +81,7 @@ class LogicDistributor:
         self.setup_ros()
     
     def setup_ros(self):
-        self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
+        self.delivery_sub = rospy.Subscriber("/pickup", Pose, self.pickup_cb)
 
         self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
         self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
@@ -224,7 +224,7 @@ class LogicDistributor:
         self.dropzone_msg.pose.orientation.y = 0
         self.dropzone_msg.pose.orientation.z = 0
         self.dropzone_msg.header.seq = 1
-        self.dropzone_msg.header.frame_id = "world"
+        self.dropzone_msg.header.frame_id = "enu"
     def setHomeGoal(self):
         self.goal_x = 0.0
         self.goal_y = 0.0
@@ -237,5 +237,5 @@ class LogicDistributor:
         self.home_location_msg.pose.orientation.y = 0
         self.home_location_msg.pose.orientation.z = 0
         self.home_location_msg.header.seq = 1
-        self.home_location_msg.header.frame_id = "world"
+        self.home_location_msg.header.frame_id = "enu"
         self.goal_pub.publish(self.home_location_msg)

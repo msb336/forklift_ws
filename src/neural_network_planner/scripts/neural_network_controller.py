@@ -130,7 +130,8 @@ class NeuralNetworkController:
         orientation.z_val = sim_pose_msg.pose.orientation.z
         self.sim_pose = Pose(pos, orientation)
 
-    def goal_cb(self, goal_pose_msg):
+    def goal_cb(self, goal_pose_msg_enu):
+        goal_pose_msg = self.tf_buffer.transform(goal_pose_msg_enu, 'world')
         pos = Vector3r()
         orientation = Quaternionr()
         
@@ -144,9 +145,10 @@ class NeuralNetworkController:
         self.goal_pose = Pose(pos, orientation)
 
     def control_cb(self, bool_msg):
+        self.status = False
         if bool_msg.data == "ml":
             self.controller = SimpleController(self.goal_pose)
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
             self.planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
             self.control_implemented = True
-            self.status = False
+            
