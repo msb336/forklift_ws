@@ -81,6 +81,6 @@ while True:
 		quit()
 	
 	idx += 1
-	time.sleep(0.5)
+	time.sleep(0.2)
 
 airsim_rec.close() 

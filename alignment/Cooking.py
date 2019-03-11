@@ -14,6 +14,7 @@ import re
 import math
 import pdb
 import pptk
+import glob
 
 # This constant is used as an upper bound  for normalizing the car's speed to be between 0 and 1 
 MAX_SPEED = 7.0
@@ -57,7 +58,7 @@ def splitTrainValidationAndTestData(all_data_mappings, split_ratio=(0.7, 0.2, 0.
 
     return [train_data_mappings, validation_data_mappings, test_data_mappings]
     
-def generateDataMapAirSim(folders, pallets_file, fl_origin, pdt, edt, num_points, z_const):
+def generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const):
     """ Data map generator for simulator(AirSim) data. Reads the driving_log csv file and returns a list of 'center camera image name - label(s)' tuples
            Inputs:
                folders: list of folders to collect data from
@@ -84,9 +85,9 @@ def generateDataMapAirSim(folders, pallets_file, fl_origin, pdt, edt, num_points
             roll = math.degrees(float(current_df.iloc[i][['Roll']]))
             pitch = math.degrees(float(current_df.iloc[i][['Pitch']]))
             yaw = math.degrees(float(current_df.iloc[i][['Yaw']]))
-			
+            
 			# load pallets numpy
-            pallets = np.load(pallets_file)
+            pallets = np.load(glob.glob(os.path.join(folder,"*.npy"))[0])
 			
             # build numpy of the values we want to subtract from the pallets values
             diff_values = np.array([[[pos_x, pos_y, pos_z], [0, 0, 0], [roll, pitch, yaw]]]*pallets.shape[0])
@@ -107,25 +108,39 @@ def generateDataMapAirSim(folders, pallets_file, fl_origin, pdt, edt, num_points
             
             # load lidar data numpy
             lidar_data_path = os.path.join(os.path.join(folder, 'images'), current_df.iloc[i]['ImageFile']).replace('\\', '/')
+            if not os.path.isfile(lidar_data_path):
+                continue
             lidar_data = np.load(lidar_data_path)
             
             # delete irrelevant far data points
             idxs = np.where(abs(lidar_data) > edt)[0]
             lidar_data_trimmed = np.delete(lidar_data, idxs, axis=0)
             
+            # collect a number of lidar data options, depends on how big the number of points we have
+            lidar_data_samples = []
+            
             # randomly remove points to keep constant number of data points
             if lidar_data_trimmed.shape[0] > num_points:
-                rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:lidar_data_trimmed.shape[0]-num_points]
-                lidar_data_trimmed = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
+                max_points = lidar_data_trimmed.shape[0]-num_points
+                
+				# calculate how many samples of lidar data will be added, depends on the amount of points we receive
+                num_of_samples = int(lidar_data_trimmed.shape[0]/num_points)
+                
+                for i in range(num_of_samples):
+                    rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:max_points]
+                    lidar_data_trimmed_temp = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
+                    lidar_data_samples.append(lidar_data_trimmed_temp)
             # randomly add points if there is not enough data points
             elif lidar_data_trimmed.shape[0] < num_points:
                 added_data_points = np.random.normal(loc=0.0, scale=edt, size=(num_points-lidar_data_trimmed.shape[0],3))
                 lidar_data_trimmed = np.concatenate((lidar_data_trimmed, added_data_points), axis=0)
+                lidar_data_samples.append(lidar_data_trimmed)
             
             # add the data and label to the mapping list
             # mapping will be [lidar_data, distance, label]
             for pallet in relevant_pallets_list:
-                mappings.append([lidar_data_trimmed, pallet[0], pallet[2]])
+                for lidar_data in lidar_data_samples:
+                    mappings.append([lidar_data, pallet[0], pallet[2]])
 
     random.shuffle(mappings) 
     
@@ -197,7 +212,7 @@ def saveH5pyData(data_mappings, target_file_path, chunk_size):
             row_count += lidar_data_chunk.shape[0]
             
             
-def cook(folders, output_directory, pallets_file, fl_origin, pdt, edt, num_points, z_const, train_eval_test_split, chunk_size):
+def cook(folders, output_directory, fl_origin, pdt, edt, num_points, z_const, train_eval_test_split, chunk_size):
     """ Primary function for data pre-processing. Reads and saves all data as h5 files.
             Inputs:
                 folders: a list of all data folders
@@ -209,7 +224,7 @@ def cook(folders, output_directory, pallets_file, fl_origin, pdt, edt, num_point
        print("Preprocessed data already exists at: {0}. Skipping preprocessing.".format(output_directory))
 
     else:
-        all_data_mappings = generateDataMapAirSim(folders, pallets_file, fl_origin, pdt, edt, num_points, z_const)
+        all_data_mappings = generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const)
         split_mappings = splitTrainValidationAndTestData(all_data_mappings, split_ratio=train_eval_test_split)
         
         for i in range(0, len(split_mappings)-1, 1):

@@ -102,6 +102,6 @@ def load_lidar_data(data_path, is_train=True):
     data = np.concatenate((lidar_data,distance), axis=1)
 	
     # load labels
-    labels = np.asarray(dataset['label'])
-	
+    labels = np.asarray(dataset['label']) / 180.0
+    
     return data, labels
