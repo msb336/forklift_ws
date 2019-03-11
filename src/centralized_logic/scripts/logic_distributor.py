@@ -1,4 +1,5 @@
 import rospy
+import math
 import numpy as np
 from geometry_msgs.msg import PoseStamped, PointStamped
 from geometry_msgs.msg import TransformStamped
@@ -150,6 +151,7 @@ class ForkliftOperator:
         if self.status is not FORKS.MOVING:
             self.start_time = time.time()
             self.status = FORKS.MOVING
+            print("lowering")
         if time.time() - self.start_time < 5:
                 self.command = 2
         else:
@@ -177,7 +179,7 @@ class LogicDistributor:
         self.setup_ros()
     
     def setup_ros(self):
-        self.delivery_sub = rospy.Subscriber("/pickup", Pose, self.pickup_cb)
+        self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
 
         self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
         self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
@@ -220,9 +222,9 @@ class LogicDistributor:
 
 ######## ROS MSG CALLBACKS ##################
     # User goal setting subscriber callback
-    def pickup_cb(self, package_location_msg):
-        world_package_msg = self.tf_buffer.transform(package_location_msg, "world")
-        self.package_pickup_msg = world_package_msg
+    def pickup_cb(self,world_pose_msg):
+#        world_package_msg = self.tf_buffer.transform(package_location_msg, "world")
+        self.package_pickup_msg = world_pose_msg
         x = world_pose_msg.pose.position.x
         y = world_pose_msg.pose.position.y
         z = world_pose_msg.pose.position.z
@@ -272,6 +274,7 @@ class LogicDistributor:
                 self.control_logic = TASK.UNLOAD
             elif self.pickup_requested:
                 self.control_logic = TASK.LOAD
+                print("loading")
             else:
                 self.control_logic = TASK.GO_HOME
 
@@ -320,7 +323,6 @@ class LogicDistributor:
 
     def unload(self):
         self.operation_status = STATUS.MOVING_FORKS
-        print("unloading package")
         self.loaded = self.forklift_operator.lower()
         if not self.loaded:
             self.control_logic = TASK.GO_HOME
