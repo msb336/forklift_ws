@@ -119,11 +119,19 @@ class TASK(Enum):
     GO_HOME = 7
     CHARGE = 8
     IDLE = 9
-class STATUS(Enum):
+class OPERATION(Enum):
     TRAVERSING = 1
     ALIGNING = 2
     MOVING_FORKS = 3
     IDLE = 4
+
+class GOAL:
+    __init__(self):
+        self.traversed = False
+        self.aligned = False
+        self.loaded = False
+
+
 class FORKS(Enum):
     DOWN = 1
     UP = 2
@@ -167,19 +175,24 @@ class ForkliftOperator:
 
 ######## LOGIC DISTRIBUTOR CLASS ##########################
 class LogicDistributor:
+
     pickup_requested = False
     package_delivered = False
     loaded = False
     controller = ""
+
     control_logic = TASK.IDLE
-    operation_status = STATUS.IDLE
+    operation_status = OPERATION.IDLE
     forklift_operator = ForkliftOperator()
+    goal_status = GOAL()
 
     def __init__(self):
         self.setup_ros()
-    
+   
     def setup_ros(self):
+
         self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
+        self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb)
 
         self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
         self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
@@ -195,6 +208,8 @@ class LogicDistributor:
 
 
     def update(self):
+        self.checkDistance()
+
         if self.control_logic is TASK.PICKUP:
             self.pickup()
         elif self.control_logic is TASK.ALIGN_PICKUP:
@@ -215,8 +230,99 @@ class LogicDistributor:
 
 
 
+######### control logic ####################
+    def checkDistance(self):
+        self.distance_from_goal = np.linalg.norm(np.array((self.robot_x-self.goal_x. self.robot_y - self.goal_y)))
+        if self.operation_status is OPERATION.TRAVERSING and self.distance_from_goal < 3:
+            self.goal_status.traversed = True
+        else:
+            self.goal_status.traversed = False
+        if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 0.5:
+            self.goal_status.aligned = True
+        else:
+            self.goal_status.aligned = False
+
+    def determineGoal(self):
+        if self.pickup_requested:
+            if self.goal_status.traversed is False:
+                self.control_logic = TASK.PICKUP
+            elif self.goal_status.aligned is False:
+                self.control_logic = TASK.ALIGN_PICKUP
+            else:
+                self.control_logic = TASK.LOAD
+
+        elif self.loaded:
+            if self.goal_status.traversed is False:
+                self.control_logic = TASK.DELIVER
+            elif self.goal_status.aligned is False:
+                self.control_logic = TASK.ALIGN_DELIVERY
+            else:
+                self.control_logic = TASK.UNLOAD
+        else:
+            self.control_logic = TASK.GO_HOME
 
 
+
+
+
+
+
+
+###### OPERATION COMMANDS ###########################
+    def pickup(self):
+        if self.operation_status is not OPERATION.TRAVERSING:
+            print("heading to pickup location")
+            self.pallet_spawn_pub.publish(self.package_pickup_msg)
+            self.goal_pub.publish(self.airsim_goal_msg)
+            self.controller = "ackermann"
+            self.operation_status = OPERATION.TRAVERSING
+
+    def alignPickup(self):
+        if self.operation_status is not OPERATION.ALIGNING:
+            print("aligning with package")
+            self.controller = "ml"
+            self.goal_pub.publish(self.package_pickup_msg)
+            self.operation_status = OPERATION.ALIGNING
+
+    def load(self):
+        self.controller = ""
+        self.operation_status = OPERATION.MOVING_FORKS
+        ## Raise forks
+        self.loaded = self.forklift_operator.lift()
+
+    def deliver(self):
+        if self.operation_status is not OPERATION.TRAVERSING:
+            self.operation_status = OPERATION.TRAVERSING
+            print("delivering to drop zone")
+            self.controller = "ackermann"
+            self.goal_pub.publish(self.dropzone_msg)
+
+
+    def alignDelivery(self):
+        if self.operation_status is not OPERATION.ALIGNING:
+            self.operation_status = OPERATION.ALIGNING
+            print("aligning with delivery zone")
+            self.controller = "ml"
+            self.goal_pub.publish(self.dropzone_msg)
+
+    def unload(self):
+        self.operation_status = OPERATION.MOVING_FORKS
+        self.loaded = self.forklift_operator.lower()
+
+    
+    def goHome(self):
+        if self.operation_status is not OPERATION.TRAVERSING:
+            self.operation_status = OPERATION.TRAVERSING
+            print("heading home")
+            self.goal_pub.publish(self.home_location_msg)
+            self.controller = "ackermann"
+
+    def charge(self):
+        if self.operation_status is not OPERATION.ALIGNING:
+            self.operation_status = OPERATION.ALIGNING
+            print("aligning with charger")
+            self.home_location.header.frame_id = "world"
+            self.goal_pub.publish(self.home_location_msg)
 
 
 
@@ -233,7 +339,7 @@ class LogicDistributor:
         qx = world_pose_msg.pose.orientation.x
         qy = world_pose_msg.pose.orientation.y
 
-        goal_x, goal_y = linearExtension(x,y,[qw,qx,qy,qz], 4)
+        self.goal_x, self.goal_y = linearExtension(x,y,[qw,qx,qy,qz], 4)
         goal_theta = world_pose_msg.pose.orientation.z
         
         self.airsim_goal_msg = PoseStamped()
@@ -246,104 +352,20 @@ class LogicDistributor:
         self.airsim_goal_msg.pose.orientation.z = world_pose_msg.pose.orientation.z
         self.airsim_goal_msg.header.seq = 1
         self.airsim_goal_msg.header.frame_id = "world"
-
-        self.control_logic = TASK.PICKUP
+        self.pickup_requested = True
 
     # path status subscriber callback
     def path_goal_status_cb(self, status_msg):
         # This will be true when the drone has traversed to either the pickup location, delivery location, or charge location
-        path_goal_status = status_msg.data
-        if path_goal_status:
-            # The drone has reached it's goal, let's find out which goal
-            if self.pickup_requested:
-                # it's gotten into a good proximity to the requested pickup zone to start the ml process
-                self.control_logic = TASK.ALIGN_PICKUP
-
-            elif self.loaded:
-                self.control_logic = TASK.ALIGN_DELIVERY
-            else:
-                # it's ready to return to start position
-                self.control_logic = TASK.CHARGE
+        self.path_goal_status = status_msg.data
 
     # ml status subscriber callback
     def ml_goal_status_cb(self, status_msg):
-        ml_goal_status = status_msg.data
-        if ml_goal_status:
-            if self.loaded:
-                # means we've hit the drop point
-                self.control_logic = TASK.UNLOAD
-            elif self.pickup_requested:
-                self.control_logic = TASK.LOAD
-                print("loading")
-            else:
-                self.control_logic = TASK.GO_HOME
+        self.ml_goal_status = status_msg.data
 
-
-
-###### OPERATION COMMANDS ###########################
-    def pickup(self):
-        if self.operation_status is not STATUS.TRAVERSING:
-            print("heading to pickup location")
-            self.pallet_spawn_pub.publish(self.package_pickup_msg)
-            self.goal_pub.publish(self.airsim_goal_msg)
-            self.controller = "ackermann"
-            self.pickup_requested = True
-            self.operation_status = STATUS.TRAVERSING
-
-    def alignPickup(self):
-        if self.operation_status is not STATUS.ALIGNING:
-            print("aligning with package")
-            self.controller = "ml"
-            self.goal_pub.publish(self.package_pickup_msg)
-            self.operation_status = STATUS.ALIGNING
-
-    def load(self):
-        self.controller = ""
-        self.operation_status = STATUS.MOVING_FORKS
-        ## Raise forks
-        self.loaded = self.forklift_operator.lift()
-        if self.loaded:
-            self.pickup_requested = False
-            self.control_logic = TASK.DELIVER
-
-    def deliver(self):
-        if self.operation_status is not STATUS.TRAVERSING:
-            self.operation_status = STATUS.TRAVERSING
-            print("delivering to drop zone")
-            self.controller = "ackermann"
-            self.goal_pub.publish(self.dropzone_msg)
-
-
-    def alignDelivery(self):
-        if self.operation_status is not STATUS.ALIGNING:
-            self.operation_status = STATUS.ALIGNING
-            print("aligning with delivery zone")
-            self.controller = "ml"
-            self.goal_pub.publish(self.dropzone_msg)
-
-    def unload(self):
-        self.operation_status = STATUS.MOVING_FORKS
-        self.loaded = self.forklift_operator.lower()
-        if not self.loaded:
-            self.control_logic = TASK.GO_HOME
-            self.package_delivered = True
-
-    
-    def goHome(self):
-        if self.operation_status is not STATUS.TRAVERSING:
-            self.operation_status = STATUS.TRAVERSING
-            print("heading home")
-            self.goal_pub.publish(self.home_location_msg)
-            self.controller = "ackermann"
-
-    def charge(self):
-        if self.operation_status is not STATUS.ALIGNING:
-            self.operation_status = STATUS.ALIGNING
-            print("aligning with charger")
-            self.home_location.header.frame_id = "world"
-            self.goal_pub.publish(self.home_location_msg)
-
-
+    def pose_cb(self, robot_pose_msg):
+        self.robot_x = robot_pose_msg.pose.position.x
+        self.robot_y = robot_pose_msg.pose.position.y
 
 
 
