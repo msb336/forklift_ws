@@ -45,21 +45,22 @@ class ForkliftOperator:
     def lift(self):
         finished = False
         if self.status is not FORKS.MOVING:
-            self.start_time = time.clock()
+            self.start_time = time.time()
             self.status = FORKS.MOVING
-        if time.clock() - self.start_time < 5:
+            print("lifting")
+        if time.time() - self.start_time < 5:
                 self.command = 1
-
         else:
             self.command = 0
             self.status = FORKS.UP
             finished = True
-    def LOWER(self):
+            return finished
+    def lower(self):
         finished = True
         if self.status is not FORKS.MOVING:
-            self.start_time = time.clock()
+            self.start_time = time.time()
             self.status = FORKS.MOVING
-        if time.clock() - self.start_time < 5:
+        if time.time() - self.start_time < 5:
                 self.command = 2
         else:
             self.command = 0
@@ -175,17 +176,17 @@ class LogicDistributor:
     def alignPickup(self):
         if self.operation_status is not STATUS.ALIGNING:
             print("aligning with package")
-            self.pickup_requested = False
             self.controller = "ml"
             self.goal_pub.publish(self.package_pickup_msg)
             self.operation_status = STATUS.ALIGNING
 
     def load(self):
+        self.controller = ""
         self.operation_status = STATUS.MOVING_FORKS
-        print("raising forks")
         ## Raise forks
         self.loaded = self.forklift_operator.lift()
         if self.loaded:
+            self.pickup_requested = False
             self.control_logic = TASK.DELIVER
 
     def deliver(self):
