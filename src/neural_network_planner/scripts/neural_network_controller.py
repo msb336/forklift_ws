@@ -150,3 +150,6 @@ class NeuralNetworkController:
             self.planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
             self.control_implemented = True
             self.status = False
+        else:
+            self.status = False
+            self.control_implemented = False
