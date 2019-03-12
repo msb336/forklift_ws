@@ -110,39 +110,40 @@ def linearExtension(x,y, q, distance):
 
 ######## FORKLIFT OPERATOR AND TASK ENUMS #####################
 class TASK(Enum):
-    PICKUP = 1
-    ALIGN_PICKUP = 2
-    LOAD = 3
-    DELIVER = 4
-    ALIGN_DELIVERY = 5
-    UNLOAD = 6
-    GO_HOME = 7
-    CHARGE = 8
-    IDLE = 9
+    PICKUP          = 1
+    ALIGN_PICKUP    = 2
+    LOAD            = 3
+    DELIVER         = 4
+    ALIGN_DELIVERY  = 5
+    UNLOAD          = 6
+    GO_HOME         = 7
+    CHARGE          = 8
+    IDLE            = 9
 class OPERATION(Enum):
-    TRAVERSING = 1
-    ALIGNING = 2
-    MOVING_FORKS = 3
-    IDLE = 4
+    TRAVERSING      = 1
+    ALIGNING        = 2
+    MOVING_FORKS    = 3
+    IDLE            = 4
 
 class GOAL:
     def __init__(self):
-        self.traversed = False
-        self.aligned = False
-        self.goal_status.loaded = False
-        self.goal_status.pickup_requested = False
-        self.goal_status.delivery_complete = False
+        self.traversed                      = False
+        self.aligned                        = False
+        self.goal_status.loaded             = False
+        self.goal_status.pickup_requested   = False
+        self.goal_status.delivery_complete  = False
 
 
 class FORKS(Enum):
-    DOWN = 1
-    UP = 2
-    MOVING = 3
+    DOWN    = 1
+    UP      = 2
+    MOVING  = 3
 
 class ForkliftOperator:
-    command = 0
-    calls = 0
-    status = FORKS.DOWN
+    command     = 0
+    calls       = 0
+    status      = FORKS.DOWN
+
     def lift(self):
         finished = False
         if self.status is FORKS.UP:
@@ -183,17 +184,17 @@ class ForkliftOperator:
 
 ######## LOGIC DISTRIBUTOR CLASS ##########################
 class LogicDistributor:
-    robot_x = np.inf
-    robot_y = np.inf
-    goal_x = 0
-    goal_y = 0
-    distance_from_goal = np.inf
-    controller = ""
+    robot_x             = np.inf
+    robot_y             = np.inf
+    goal_x              = 0
+    goal_y              = 0
+    distance_from_goal  = np.inf
+    controller          = ""
 
-    control_logic = TASK.IDLE
-    operation_status = OPERATION.IDLE
-    forklift_operator = ForkliftOperator()
-    goal_status = GOAL()
+    control_logic       = TASK.IDLE
+    operation_status    = OPERATION.IDLE
+    forklift_operator   = ForkliftOperator()
+    goal_status         = GOAL()
 
     def __init__(self):
         self.setup_ros()
