@@ -190,6 +190,7 @@ class LogicDistributor:
     package_delivered = False
     loaded = False
     controller = ""
+    delivery_complete = False
 
     control_logic = TASK.IDLE
     operation_status = OPERATION.IDLE
@@ -242,7 +243,11 @@ class LogicDistributor:
             self.goHome()
         elif self.control_logic is TASK.CHARGE:
             self.charge()
+        else:
+            self.idle()
+
         self.control_logic_pub.publish(self.controller)
+        self.forklift_pub.publish(self.forklift_operator.command)
 
 
 
@@ -276,8 +281,17 @@ class LogicDistributor:
                 self.control_logic = TASK.ALIGN_DELIVERY
             else:
                 self.control_logic = TASK.UNLOAD
-        else:
-            self.control_logic = TASK.IDLE
+        elif self.delivery_complete:
+            if self.goal_status.traversed is False:
+                self.goal_x = self.home_goal_x
+                self.goal_y = self.home_goal_y
+                self.control_logic = TASK.GO_HOME
+            elif self.goal_status.aligned is False:
+                self.goal_x = self.home_goal_x
+                self.goal_y = self.home_goal_y
+                self.control_logic = TASK.CHARGE
+            else:
+                self.control_logic = TASK.IDLE
 
 
 
@@ -287,12 +301,17 @@ class LogicDistributor:
 
 
 ###### OPERATION COMMANDS ###########################
+    def idle(self):
+        if self.operation_status is not OPERATION.IDLE:
+            self.operation_status = OPERATION.IDLE
+            print("idling")
+            self.controller = ""
     def pickup(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             print("heading to pickup location")
             self.controller = "ackermann"
             self.operation_status = OPERATION.TRAVERSING
-
+            self.delivery_complete = False
     def alignPickup(self):
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.package_pickup_msg)
@@ -315,10 +334,9 @@ class LogicDistributor:
             print("delivering to drop zone")
             self.controller = "ackermann"
 
-
     def alignDelivery(self):
         if self.operation_status is not OPERATION.ALIGNING:
-            self.traverse_goal_pub.publish(self.dropzone_msg)
+            self.align_goal_pub.publish(self.dropzone_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with delivery zone")
             self.controller = "ml"
@@ -328,7 +346,7 @@ class LogicDistributor:
         self.loaded = self.forklift_operator.lower()
         if not self.loaded:
             self.goal_status = GOAL()
-    
+            self.delivery_complete = True    
     def goHome(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             self.traverse_goal_pub.publish(self.home_location_msg)
@@ -342,7 +360,6 @@ class LogicDistributor:
             self.align_goal_pub.publish(self.home_location_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
-            self.home_location.header.frame_id = "world"
             
 
 
@@ -378,6 +395,9 @@ class LogicDistributor:
 
         self.pallet_spawn_pub.publish(self.package_pickup_msg)
         self.traverse_goal_pub.publish(self.airsim_goal_msg)
+        ## debug
+        self.package_pickup_msg.pose.position.x += 2.0
+        self.loading_goal_x += 2.0
 
     # path status subscriber callback
     def path_goal_status_cb(self, status_msg):
@@ -397,16 +417,16 @@ class LogicDistributor:
 ################## MSG CREATORS ######################################
 
     def setDeliveryGoal(self):
-        self.delivery_goal_x = 0.0 #22.0
-        self.delivery_goal_y = 0.0 #6.0
+        self.delivery_goal_x = 22.0
+        self.delivery_goal_y = 6.0
         self.dropzone_msg = PoseStamped()
         self.dropzone_msg.pose.position.x = self.delivery_goal_x
         self.dropzone_msg.pose.position.y = self.delivery_goal_y
         self.dropzone_msg.pose.position.z = 0
-        self.dropzone_msg.pose.orientation.w = 1
+        self.dropzone_msg.pose.orientation.w = 0 
         self.dropzone_msg.pose.orientation.x = 0
         self.dropzone_msg.pose.orientation.y = 0
-        self.dropzone_msg.pose.orientation.z = 0
+        self.dropzone_msg.pose.orientation.z = 1 
         self.dropzone_msg.header.seq = 1
         self.dropzone_msg.header.frame_id = "world"
 
@@ -417,10 +437,10 @@ class LogicDistributor:
         self.home_location_msg.pose.position.x = self.home_goal_x
         self.home_location_msg.pose.position.y = self.home_goal_y
         self.home_location_msg.pose.position.z = 0
-        self.home_location_msg.pose.orientation.w = 1
+        self.home_location_msg.pose.orientation.w = 0.707 
         self.home_location_msg.pose.orientation.x = 0
         self.home_location_msg.pose.orientation.y = 0
-        self.home_location_msg.pose.orientation.z = 0
+        self.home_location_msg.pose.orientation.z = 0.707
         self.home_location_msg.header.seq = 1
         self.home_location_msg.header.frame_id = "world"
     

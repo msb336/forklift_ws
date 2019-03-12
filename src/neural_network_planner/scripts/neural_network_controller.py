@@ -79,7 +79,7 @@ class NeuralNetworkController:
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
         self.local_waypoint_pub.publish(local_goal_msg)
         if distance_from_goal > 0.5:
-            speed = -0.65
+            speed = -0.7
         else:
             speed = 0
             self.status = True
