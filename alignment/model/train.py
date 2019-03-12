@@ -86,7 +86,7 @@ def get_bn_decay(batch):
 def train():
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            pointclouds_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
+            pointclouds_pl, distance_pl, labels_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT)
             is_training_pl = tf.placeholder(tf.bool, shape=())
             print(is_training_pl)
             
@@ -97,7 +97,7 @@ def train():
             tf.summary.scalar('bn_decay', bn_decay)
             
             # Get model and loss 
-            pred, end_points = MODEL.get_model(pointclouds_pl, is_training_pl, bn_decay=bn_decay)
+            pred, end_points = MODEL.get_model(pointclouds_pl, distance_pl, is_training_pl, bn_decay=bn_decay)
             loss = MODEL.get_loss(pred, labels_pl, end_points)
             tf.summary.scalar('loss', loss)	
 			
@@ -139,6 +139,7 @@ def train():
         sess.run(init, {is_training_pl: True})
 
         ops = {'pointclouds_pl': pointclouds_pl,
+               'distance_pl': distance_pl,
                'labels_pl': labels_pl,
                'is_training_pl': is_training_pl,
                'pred': pred,
@@ -166,9 +167,9 @@ def train_one_epoch(sess, ops, train_writer):
 	is_training = True
 
 	
-	current_data, current_label = provider.load_lidar_data(FLAGS.data_path, is_train=is_training)
+	current_data, current_distance, current_label = provider.load_lidar_data(FLAGS.data_path, is_train=is_training)
 	current_data = current_data[:,0:NUM_POINT,:]
-	current_data, current_label, _ = provider.shuffle_data(current_data, np.squeeze(current_label))            
+	current_data, current_distance, current_label, _ = provider.shuffle_data(current_data, current_distance, np.squeeze(current_label))            
 	current_label = np.squeeze(current_label)
 	
 	file_size = current_data.shape[0]
@@ -186,6 +187,7 @@ def train_one_epoch(sess, ops, train_writer):
 		#rotated_data = provider.rotate_point_cloud(current_data[start_idx:end_idx, :, :])
 		jittered_data = provider.jitter_point_cloud(current_data[start_idx:end_idx, :, :])
 		feed_dict = {ops['pointclouds_pl']: jittered_data,
+					 ops['distance_pl']: current_distance[start_idx:end_idx, :],
 					 ops['labels_pl']: current_label[start_idx:end_idx],
 					 ops['is_training_pl']: is_training,}
 		summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
@@ -210,7 +212,7 @@ def eval_one_epoch(sess, ops, test_writer):
 	#total_seen_class = [0 for _ in range(NUM_CLASSES)]
 	#total_correct_class = [0 for _ in range(NUM_CLASSES)]
     
-	current_data, current_label = provider.load_lidar_data(FLAGS.data_path, is_train=is_training)
+	current_data, current_distance, current_label = provider.load_lidar_data(FLAGS.data_path, is_train=is_training)
 	current_data = current_data[:,0:NUM_POINT,:]
 	current_label = np.squeeze(current_label)
 	
@@ -222,6 +224,7 @@ def eval_one_epoch(sess, ops, test_writer):
 		end_idx = (batch_idx+1) * BATCH_SIZE
 
 		feed_dict = {ops['pointclouds_pl']: current_data[start_idx:end_idx, :, :],
+					 ops['distance_pl']: current_distance[start_idx:end_idx, :],
 					 ops['labels_pl']: current_label[start_idx:end_idx],
 					 ops['is_training_pl']: is_training}
 		summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'],

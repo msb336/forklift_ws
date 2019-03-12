@@ -9,7 +9,7 @@ sys.path.append(BASE_DIR)
 # Download dataset for point cloud classification
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 
-def shuffle_data(data, labels):
+def shuffle_data(data, distance, labels):
     """ Shuffle data and labels.
         Input:
           data: B,N,... numpy array
@@ -19,7 +19,7 @@ def shuffle_data(data, labels):
     """
     idx = np.arange(len(labels))
     np.random.shuffle(idx)
-    return data[idx, ...], labels[idx], idx
+    return data[idx, ...], distance[idx, ...], labels[idx, ...], idx
 
 
 def rotate_point_cloud(batch_data):
@@ -97,11 +97,12 @@ def load_lidar_data(data_path, is_train=True):
     
     # load dataset
     lidar_data = np.asarray(dataset['lidar_data'])
-    distance = np.asarray(dataset['distance'])
-    distance = np.expand_dims(distance, axis=1)
-    data = np.concatenate((lidar_data,distance), axis=1)
-	
-    # load labels
+    #distance = np.asarray(dataset['distance'])
+    #distance = np.expand_dims(distance, axis=1)
+    #data = np.concatenate((lidar_data,distance), axis=1)
+    
+    # load distance and labels
+    distance = np.asarray(dataset['distance']) / 750.0
     labels = np.asarray(dataset['label']) / 180.0
     
-    return data, labels
+    return lidar_data, distance, labels
