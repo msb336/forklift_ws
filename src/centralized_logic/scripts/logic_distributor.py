@@ -156,6 +156,8 @@ class ForkliftOperator:
             self.status = FORKS.UP
             finished = True
             return finished
+
+
     def lower(self):
         finished = True
         if self.status is FORKS.DOWN:
@@ -261,7 +263,6 @@ class LogicDistributor:
             elif self.goal_status.aligned is False:
                 self.goal_x = self.loading_goal_x
                 self.goal_y = self.loading_goal_y
-                self.align_goal_pub.publish(self.package_pickup_msg)
                 self.control_logic = TASK.ALIGN_PICKUP
             else:
                 self.control_logic = TASK.LOAD
@@ -270,7 +271,6 @@ class LogicDistributor:
             if self.goal_status.traversed is False:
                 self.goal_x = self.delivery_goal_x
                 self.goal_y = self.delivery_goal_y
-                self.traverse_goal_pub.publish(self.dropzone_msg)
                 self.control_logic = TASK.DELIVER
             elif self.goal_status.aligned is False:
                 self.control_logic = TASK.ALIGN_DELIVERY
@@ -295,6 +295,7 @@ class LogicDistributor:
 
     def alignPickup(self):
         if self.operation_status is not OPERATION.ALIGNING:
+            self.align_goal_pub.publish(self.package_pickup_msg)
             print("aligning with package")
             self.controller = "ml"
             self.operation_status = OPERATION.ALIGNING
@@ -309,6 +310,7 @@ class LogicDistributor:
             self.goal_status = GOAL()
     def deliver(self):
         if self.operation_status is not OPERATION.TRAVERSING:
+            self.traverse_goal_pub.publish(self.dropzone_msg)
             self.operation_status = OPERATION.TRAVERSING
             print("delivering to drop zone")
             self.controller = "ackermann"
@@ -316,6 +318,7 @@ class LogicDistributor:
 
     def alignDelivery(self):
         if self.operation_status is not OPERATION.ALIGNING:
+            self.traverse_goal_pub.publish(self.dropzone_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with delivery zone")
             self.controller = "ml"
@@ -323,20 +326,24 @@ class LogicDistributor:
     def unload(self):
         self.operation_status = OPERATION.MOVING_FORKS
         self.loaded = self.forklift_operator.lower()
+        if not self.loaded:
+            self.goal_status = GOAL()
     
     def goHome(self):
         if self.operation_status is not OPERATION.TRAVERSING:
+            self.traverse_goal_pub.publish(self.home_location_msg)
             self.operation_status = OPERATION.TRAVERSING
             print("heading home")
-            self.traverse_goal_pub.publish(self.home_location_msg)
+            
             self.controller = "ackermann"
 
     def charge(self):
         if self.operation_status is not OPERATION.ALIGNING:
+            self.align_goal_pub.publish(self.home_location_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
             self.home_location.header.frame_id = "world"
-            self.align_goal_pub.publish(self.home_location_msg)
+            
 
 
 
