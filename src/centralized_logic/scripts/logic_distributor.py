@@ -129,7 +129,9 @@ class GOAL:
     def __init__(self):
         self.traversed = False
         self.aligned = False
-        self.loaded = False
+        self.goal_status.loaded = False
+        self.goal_status.pickup_requested = False
+        self.goal_status.delivery_complete = False
 
 
 class FORKS(Enum):
@@ -186,11 +188,7 @@ class LogicDistributor:
     goal_x = 0
     goal_y = 0
     distance_from_goal = np.inf
-    pickup_requested = False
-    package_delivered = False
-    loaded = False
     controller = ""
-    delivery_complete = False
 
     control_logic = TASK.IDLE
     operation_status = OPERATION.IDLE
@@ -260,7 +258,7 @@ class LogicDistributor:
             self.goal_status.aligned = True
 
     def determineGoal(self):
-        if self.pickup_requested:
+        if self.goal_status.pickup_requested:
             if self.goal_status.traversed is False:
                 self.goal_x = self.pickup_goal_x
                 self.goal_y = self.pickup_goal_y
@@ -272,7 +270,7 @@ class LogicDistributor:
             else:
                 self.control_logic = TASK.LOAD
 
-        elif self.loaded:
+        elif self.goal_status.loaded:
             if self.goal_status.traversed is False:
                 self.goal_x = self.delivery_goal_x
                 self.goal_y = self.delivery_goal_y
@@ -281,7 +279,7 @@ class LogicDistributor:
                 self.control_logic = TASK.ALIGN_DELIVERY
             else:
                 self.control_logic = TASK.UNLOAD
-        elif self.delivery_complete:
+        elif self.goal_status.delivery_complete:
             if self.goal_status.traversed is False:
                 self.goal_x = self.home_goal_x
                 self.goal_y = self.home_goal_y
@@ -306,12 +304,13 @@ class LogicDistributor:
             self.operation_status = OPERATION.IDLE
             print("idling")
             self.controller = ""
+            self.goal_status = GOAL()
     def pickup(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             print("heading to pickup location")
             self.controller = "ackermann"
             self.operation_status = OPERATION.TRAVERSING
-            self.delivery_complete = False
+            self.goal_status.delivery_complete = False
     def alignPickup(self):
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.package_pickup_msg)
@@ -323,10 +322,9 @@ class LogicDistributor:
         self.controller = ""
         self.operation_status = OPERATION.MOVING_FORKS
         ## Raise forks
-        self.loaded = self.forklift_operator.lift()
-        if self.loaded:
-            self.pickup_requested = False
-            self.goal_status = GOAL()
+        self.goal_status.loaded = self.forklift_operator.lift()
+        if self.goal_status.loaded:
+            self.goal_status.pickup_requested = False
     def deliver(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             self.traverse_goal_pub.publish(self.dropzone_msg)
@@ -343,10 +341,9 @@ class LogicDistributor:
 
     def unload(self):
         self.operation_status = OPERATION.MOVING_FORKS
-        self.loaded = self.forklift_operator.lower()
-        if not self.loaded:
-            self.goal_status = GOAL()
-            self.delivery_complete = True    
+        self.goal_status.loaded = self.forklift_operator.lower()
+        if not self.goal_status.loaded:
+            self.goal_status.delivery_complete = True    
     def goHome(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             self.traverse_goal_pub.publish(self.home_location_msg)
@@ -391,7 +388,7 @@ class LogicDistributor:
         self.airsim_goal_msg.pose.orientation.z = world_pose_msg.pose.orientation.z
         self.airsim_goal_msg.header.seq = 1
         self.airsim_goal_msg.header.frame_id = "world"
-        self.pickup_requested = True
+        self.goal_status.pickup_requested = True
 
         self.pallet_spawn_pub.publish(self.package_pickup_msg)
         self.traverse_goal_pub.publish(self.airsim_goal_msg)
