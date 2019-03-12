@@ -12,7 +12,7 @@ max_vel_x_backwards: 1
 max_vel_theta: 10
 acc_lim_theta: 10
 acc_lim_x: 100
-map_frame: /enu
+map_frame: world 
 dt_ref: 0.6
 no_inner_iterations: 1
 no_outer_iterations: 1
