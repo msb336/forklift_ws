@@ -208,7 +208,9 @@ class LogicDistributor:
         self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
         self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
 
-        self.goal_pub = rospy.Publisher("/airsim/goal", PoseStamped, queue_size=1)
+        self.traverse_goal_pub = rospy.Publisher("/airsim/goal", PoseStamped, queue_size=1)
+        self.align_goal_pub = rospy.Publisher("/ml/goal", PoseStamped, queue_size=1)
+
         self.pallet_spawn_pub = rospy.Publisher("/airsim/teleport_pallet", PoseStamped, queue_size = 1)
         self.control_logic_pub = rospy.Publisher("/logic/controller", String, queue_size=1)
 
@@ -259,7 +261,7 @@ class LogicDistributor:
             elif self.goal_status.aligned is False:
                 self.goal_x = self.loading_goal_x
                 self.goal_y = self.loading_goal_y
-                self.goal_pub.publish(self.package_pickup_msg)
+                self.align_goal_pub.publish(self.package_pickup_msg)
                 self.control_logic = TASK.ALIGN_PICKUP
             else:
                 self.control_logic = TASK.LOAD
@@ -268,7 +270,7 @@ class LogicDistributor:
             if self.goal_status.traversed is False:
                 self.goal_x = self.delivery_goal_x
                 self.goal_y = self.delivery_goal_y
-                self.goal_pub.publish(self.dropzone_msg)
+                self.traverse_goal_pub.publish(self.dropzone_msg)
                 self.control_logic = TASK.DELIVER
             elif self.goal_status.aligned is False:
                 self.control_logic = TASK.ALIGN_DELIVERY
@@ -326,7 +328,7 @@ class LogicDistributor:
         if self.operation_status is not OPERATION.TRAVERSING:
             self.operation_status = OPERATION.TRAVERSING
             print("heading home")
-            self.goal_pub.publish(self.home_location_msg)
+            self.traverse_goal_pub.publish(self.home_location_msg)
             self.controller = "ackermann"
 
     def charge(self):
@@ -334,7 +336,7 @@ class LogicDistributor:
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
             self.home_location.header.frame_id = "world"
-            self.goal_pub.publish(self.home_location_msg)
+            self.align_goal_pub.publish(self.home_location_msg)
 
 
 
@@ -368,7 +370,7 @@ class LogicDistributor:
         self.pickup_requested = True
 
         self.pallet_spawn_pub.publish(self.package_pickup_msg)
-        self.goal_pub.publish(self.airsim_goal_msg)
+        self.traverse_goal_pub.publish(self.airsim_goal_msg)
 
     # path status subscriber callback
     def path_goal_status_cb(self, status_msg):
@@ -400,7 +402,6 @@ class LogicDistributor:
         self.dropzone_msg.pose.orientation.z = 0
         self.dropzone_msg.header.seq = 1
         self.dropzone_msg.header.frame_id = "world"
-#        self.dropzone_msg = self.tf_buffer.transform(self.dropzone_msg, 'enu')
 
     def setHomeGoal(self):
         self.home_goal_x = 0.0
@@ -415,5 +416,4 @@ class LogicDistributor:
         self.home_location_msg.pose.orientation.z = 0
         self.home_location_msg.header.seq = 1
         self.home_location_msg.header.frame_id = "world"
-        self.goal_pub.publish(self.home_location_msg)
     

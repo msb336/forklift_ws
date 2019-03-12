@@ -46,7 +46,7 @@ class NeuralNetworkController:
         # Subscribers
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.vehicle_command_sub = rospy.Subscriber('/logic/controller', String, self.control_cb)
-        self.goal_sub = rospy.Subscriber('/airsim/goal', PoseStamped, self.goal_cb)
+        self.goal_sub = rospy.Subscriber('/ml/goal', PoseStamped, self.goal_cb)
         
         # Publishers
         self.forklift_pub = rospy.Publisher('/airsim/forks', Int8, queue_size=1)
