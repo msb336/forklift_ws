@@ -14,15 +14,15 @@ resolution: 0.5
 obstacle_range: 100
 max_obstacle_height: 50
 map_type: costmap
-footprint: [[-1.5, -0.4], [-1.5, 0.4], [0.5,0.4],[0.5,-0.4]]
-
+#footprint: [[-1.5, -0.4], [-1.5, 0.4], [0.5,0.4],[0.5,-0.4]]
+robot_radius: 1
 obstacle_layer:
   observation_sources: point_cloud_sensor
   point_cloud_sensor: {sensor_frame: lidar_link, data_type: PointCloud2, topic: /airsim/lidar, marking: true, clearing: true}
   footprint_clearing_enable: false
 
 inflation_layer:
-  inflation_radius: 0.5
+  inflation_radius: 0.1
   cost_scaling_factor: 5.0
 
 static_layer:

@@ -127,11 +127,11 @@ class OPERATION(Enum):
 
 class GOAL:
     def __init__(self):
-        self.traversed                      = False
-        self.aligned                        = False
-        self.goal_status.loaded             = False
-        self.goal_status.pickup_requested   = False
-        self.goal_status.delivery_complete  = False
+        self.traversed          = False
+        self.aligned            = False
+        self.loaded             = False
+        self.pickup_requested   = False
+        self.delivery_complete  = False
 
 
 class FORKS(Enum):
@@ -152,7 +152,7 @@ class ForkliftOperator:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lifting")
-        if time.time() - self.start_time < 5:
+        if time.time() - self.start_time < 2:
                 self.command = 1
         else:
             self.command = 0
@@ -169,7 +169,7 @@ class ForkliftOperator:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lowering")
-        if time.time() - self.start_time < 5:
+        if time.time() - self.start_time < 2:
                 self.command = 2
         else:
             self.command = 0
@@ -255,7 +255,7 @@ class LogicDistributor:
         self.distance_from_goal = np.linalg.norm(np.array((self.robot_x-self.goal_x, self.robot_y - self.goal_y)))
         if self.operation_status is OPERATION.TRAVERSING and self.distance_from_goal < 3:
             self.goal_status.traversed = True
-        if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 1:
+        if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 0.9:
             self.goal_status.aligned = True
 
     def determineGoal(self):
@@ -325,6 +325,8 @@ class LogicDistributor:
         ## Raise forks
         self.goal_status.loaded = self.forklift_operator.lift()
         if self.goal_status.loaded:
+            self.goal_status.traversed = False
+            self.goal_status.aligned = False
             self.goal_status.pickup_requested = False
     def deliver(self):
         if self.operation_status is not OPERATION.TRAVERSING:
@@ -344,7 +346,10 @@ class LogicDistributor:
         self.operation_status = OPERATION.MOVING_FORKS
         self.goal_status.loaded = self.forklift_operator.lower()
         if not self.goal_status.loaded:
+            self.controller = "pullout"
             self.goal_status.delivery_complete = True    
+            self.goal_status.traversed = False
+            self.goal_status.aligned = False
     def goHome(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             self.traverse_goal_pub.publish(self.home_location_msg)
@@ -364,7 +369,8 @@ class LogicDistributor:
 
 ######## ROS MSG CALLBACKS ##################
     # User goal setting subscriber callback
-    def pickup_cb(self,world_pose_msg):
+    def pickup_cb(self,pose_msg):
+        world_pose_msg = self.tf_buffer.transform(pose_msg, "world")
         self.package_pickup_msg = world_pose_msg
         print(world_pose_msg.header.frame_id)
         x = world_pose_msg.pose.position.x
@@ -393,9 +399,6 @@ class LogicDistributor:
 
         self.pallet_spawn_pub.publish(self.package_pickup_msg)
         self.traverse_goal_pub.publish(self.airsim_goal_msg)
-        ## debug
-        self.package_pickup_msg.pose.position.x += 2.0
-        self.loading_goal_x += 2.0
 
     # path status subscriber callback
     def path_goal_status_cb(self, status_msg):
