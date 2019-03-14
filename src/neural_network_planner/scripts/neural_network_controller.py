@@ -47,12 +47,14 @@ class NeuralNetworkController:
     def __init__(self):
         self.controller = SimpleController()
         self.setup_ros()
+        self.control_implementation = CONTROL.STOP
+        self.global_path_goal = PoseStamped()
     
     def setup_ros(self):
         # Subscribers
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
         self.control_type_sub = rospy.Subscriber('/logic/controller', String, self.control_type_cb)
-        self.goal_sub = rospy.Subscriber('/logic/goal', PoseStamped, self.goal_cb)
+        self.goal_sub = rospy.Subscriber('/ml/goal', PoseStamped, self.goal_cb)
         self.plan_sub = rospy.Subscriber('/move_base/TrajectoryPlannerROS/global_plan', Path, self.plan_cb)
 
         
@@ -66,34 +68,40 @@ class NeuralNetworkController:
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
     def update(self):
-        local_goal, direction = self.getGoals()
-        speed, angle = self.control(local_goal)
+        local_goal, direction, distance = self.getGoals()
+        speed, angle  = self.control(local_goal, distance, direction)
         command_msg = self.setVehicleCommandMessage(speed*direction, angle*direction)
         self.vehicle_command_pub.publish(command_msg)
-        self.status_pub.publish(self.status)
 
-    def getGoals():
+    def getGoals(self):
         if self.control_implementation is CONTROL.ALIGN:
             global_goal, distance_from_goal = self.alignment_planner.update(self.sim_pose)
             global_msg = self.setPointMsg(global_goal)
             local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
             local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
             multiplier = -1
-        elif self.control_implementation is CONTROL.TRAVERSE:
-            self.tf_buffer.transform(self.global_path_goal, "base_link")
-            local_goal = [self.local_path_goal.pose.position.x, self.local_path_goal.pose.position.y]
-            multiplier = 1
+        elif self.control_implementation is CONTROL.TRAVERSE and self.global_path_goal.header.frame_id is not "":
+            try:
+                local_goal_msg = self.tf_buffer.transform(self.global_path_goal, "base_link", rospy.Duration(1.0))
+            except:
+                local_goal_msg = self.global_path_goal
+                local_goal_msg.pose.position.x = 0
+                local_goal_msg.pose.position.y = 0 
+            local_goal = [local_goal_msg.pose.position.x, local_goal_msg.pose.position.y]
+            distance_from_goal = 1
+            multiplier = 1/0.7
         else:
             local_goal = [0,0]
             multiplier = 0
-        return local_goal, multiplier
+            distance_from_goal = 0
+        return local_goal, multiplier, distance_from_goal
 
-    def control(self, local_goal):
-        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
+    def control(self, local_goal, distance_from_goal, direction):
+        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal, direction)
         self.publishPoseMsg(goal_angle)
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
-        self.local_waypoint_pub.publish(local_goal_msg)
+        self.local_waypoint_pub.publish(local_waypoint_msg)
         if distance_from_goal > 0.5:
             speed = 0.7
         else:
@@ -164,15 +172,21 @@ class NeuralNetworkController:
         self.status = False
         if string_msg.data == "align":
             self.controller.reset(self.goal_pose)
+            self.controller.setGains(1,0,0.2)
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
             self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
             self.control_implementation = CONTROL.ALIGN
         elif string_msg.data == "traverse":
             self.control_implementation = CONTROL.TRAVERSE
+            self.controller.setGains(0.3,0, 0)
         else:
             self.control_implementation = CONTROL.STOP
 
 
     def plan_cb(self, plan_msg):
-        self.local_path_goal = plan_msg.poses[0]
+        try:
+            self.global_path_goal = plan_msg.poses[6]
+        except:
+            self.global_path_goal = plan_msg.poses[0]
+
 

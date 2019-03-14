@@ -133,7 +133,7 @@ def setPose(center, z_rotation):
     pose = Pose(Vector3r(center[0], center[1], center[2]), Quaternionr(z_val = z_rotation))
     return pose
 def getPallet(client):
-    pose=client.simGetObjectPose("pallet")
+    pose=client.simGetObjectPose("unwrapped_pallet")
     # center = [pose.position.x_val, pose.position.y_val, pose.position.z_val]
     return pose
 

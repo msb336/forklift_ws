@@ -217,6 +217,7 @@ class LogicDistributor:
 
         self.setDeliveryGoal()
         self.setHomeGoal()
+        self.setPickupGoal()
         
 
 
@@ -367,19 +368,18 @@ class LogicDistributor:
 ######## ROS MSG CALLBACKS ##################
     # User goal setting subscriber callback
     def pickup_cb(self,pose_msg):
-        world_pose_msg = self.tf_buffer.transform(pose_msg, "world")
-        self.package_pickup_msg = world_pose_msg
-        print(world_pose_msg.header.frame_id)
+        world_pose_msg = self.package_pickup_msg
         x = world_pose_msg.pose.position.x
         y = world_pose_msg.pose.position.y
         z = world_pose_msg.pose.position.z
+
         qw = world_pose_msg.pose.orientation.w
         qz = world_pose_msg.pose.orientation.z
         qx = world_pose_msg.pose.orientation.x
         qy = world_pose_msg.pose.orientation.y
-        self.loading_goal_x = x
-        self.loading_goal_y = y
-        self.pickup_goal_x, self.pickup_goal_y = linearExtension(x,y,[qw,qx,qy,qz], 4)
+#        self.loading_goal_x = x
+#        self.loading_goal_y = y
+        self.pickup_goal_x, self.pickup_goal_y = linearExtension(self.loading_goal_x,self.loading_goal_y,[qw,qx,qy,qz], 4)
         goal_theta = world_pose_msg.pose.orientation.z
         
         self.airsim_goal_msg = PoseStamped()
@@ -414,9 +414,22 @@ class LogicDistributor:
 
 ################## MSG CREATORS ######################################
 
+    def setPickupGoal(self):
+        self.loading_goal_x = -34.5 
+        self.loading_goal_y = 34
+        self.package_pickup_msg = PoseStamped()
+        self.package_pickup_msg.pose.position.x = self.loading_goal_x
+        self.package_pickup_msg.pose.position.y = self.loading_goal_y
+        self.package_pickup_msg.pose.position.z = 0
+        self.package_pickup_msg.pose.orientation.w = 0.7
+        self.package_pickup_msg.pose.orientation.x = 0
+        self.package_pickup_msg.pose.orientation.y = 0
+        self.package_pickup_msg.pose.orientation.z =  -0.713 
+        self.package_pickup_msg.header.seq = 1
+        self.package_pickup_msg.header.frame_id = "world"
     def setDeliveryGoal(self):
-        self.delivery_goal_x = 22.0
-        self.delivery_goal_y = 6.0
+        self.delivery_goal_x = 0.5
+        self.delivery_goal_y = 27
         self.dropzone_msg = PoseStamped()
         self.dropzone_msg.pose.position.x = self.delivery_goal_x
         self.dropzone_msg.pose.position.y = self.delivery_goal_y

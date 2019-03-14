@@ -13,16 +13,34 @@ def clip(value):
         value = -1
     return value
 class SimpleController(Reward):
-    pid_control = PID(1,0,0.2,2)
-    def calculateMotorControl(self, goal):
-        des_angle = np.arctan(goal[1]/goal[0]) 
-        if goal[0] > 0:
-            des_angle -= np.sign(des_angle)*np.pi
 
+    pid_control = PID(1,0,0.2,2)
+    def calculateMotorControl(self, goal, action):
+        if action == -1:
+            if goal[0] != 0:
+                des_angle = np.arctan(goal[1]/goal[0]) 
+            elif goal[1] == 0:
+                des_angle = np.pi/2
+            else:
+                des_angle = 0
+            if goal[0] > 0:
+                des_angle -= np.sign(des_angle)*np.pi
+
+        else:
+            if goal[0] != 0:
+                des_angle = np.arctan(goal[1]/goal[0])
+            else:
+                des_angle = 0
+            if goal[0] < 0:
+                des_angle -= np.sign(des_angle)*np.pi
         input = clip(self.pid_control.update(des_angle, 0, time.time()))
         #print(goal[0], goal[1], des_angle)
 
         return input, des_angle
+    def setGains(self, p,i,d):
+        self.pid_control.kp = p
+        self.pid_control.ki =i
+        self.pid_control.kd =d
 
 
 

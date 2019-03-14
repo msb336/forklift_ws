@@ -118,7 +118,7 @@ class Reward:
     distance_=10000
     transform_matrix_ = np.zeros((3,3))
 
-    def __init__(self, object_pose=Pose(Vector3r(), Quaternionr()):
+    def __init__(self, object_pose=Pose(Vector3r(), Quaternionr())):
         self.reset(object_pose)
 
     def reset(self, object_pose):
