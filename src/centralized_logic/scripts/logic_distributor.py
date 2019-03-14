@@ -207,9 +207,6 @@ class LogicDistributor:
         self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb)
 
-        self.path_goal_status_sub = rospy.Subscriber("/airsim/goal_status", Bool, self.path_goal_status_cb)
-        self.ml_goal_status_sub = rospy.Subscriber("/ml/goal_status", Bool, self.ml_goal_status_cb)
-
         self.traverse_goal_pub = rospy.Publisher("/airsim/goal", PoseStamped, queue_size=1)
         self.align_goal_pub = rospy.Publisher("/ml/goal", PoseStamped, queue_size=1)
 
@@ -309,14 +306,14 @@ class LogicDistributor:
     def pickup(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             print("heading to pickup location")
-            self.controller = "ackermann"
+            self.controller = "traverse"
             self.operation_status = OPERATION.TRAVERSING
             self.goal_status.delivery_complete = False
     def alignPickup(self):
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.package_pickup_msg)
             print("aligning with package")
-            self.controller = "ml"
+            self.controller = "align"
             self.operation_status = OPERATION.ALIGNING
 
     def load(self):
@@ -333,14 +330,14 @@ class LogicDistributor:
             self.traverse_goal_pub.publish(self.dropzone_msg)
             self.operation_status = OPERATION.TRAVERSING
             print("delivering to drop zone")
-            self.controller = "ackermann"
+            self.controller = "traverse"
 
     def alignDelivery(self):
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.dropzone_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with delivery zone")
-            self.controller = "ml"
+            self.controller = "align"
 
     def unload(self):
         self.operation_status = OPERATION.MOVING_FORKS
@@ -356,14 +353,14 @@ class LogicDistributor:
             self.operation_status = OPERATION.TRAVERSING
             print("heading home")
             
-            self.controller = "ackermann"
+            self.controller = "traverse"
 
     def charge(self):
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.home_location_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
-            
+            self.controller = "align"
 
 
 

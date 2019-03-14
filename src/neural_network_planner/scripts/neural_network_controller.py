@@ -7,6 +7,8 @@ from tf2_geometry_msgs import PointStamped
 from geometry_msgs.msg import PoseStamped, PointStamped
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
+from nav_msgs.msg import Path
+
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
@@ -27,59 +29,73 @@ from std_srvs.srv import Empty, EmptyResponse
 import sys
 sys.path.append('/home/matt/forklift_ws/rl')
 from SimpleController import *
-
+from enum import Enum
 
 def printPose(pose, name = ""):
     print("{} pose:".format(name))
     print("position ({}, {}, {}".format( pose.position.x_val, pose.position.y_val, pose.position.z_val))
     print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val))
 
+class CONTROL(Enum):
+    STOP = 0
+    TRAVERSE = 1
+    ALIGN = 2
 
 class NeuralNetworkController:
-    control_implemented = False
-    fork_position = False
-    aligned = False
+    
+
     def __init__(self):
+        self.controller = SimpleController()
         self.setup_ros()
     
     def setup_ros(self):
         # Subscribers
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
-        self.vehicle_command_sub = rospy.Subscriber('/logic/controller', String, self.control_cb)
-        self.goal_sub = rospy.Subscriber('/ml/goal', PoseStamped, self.goal_cb)
+        self.control_type_sub = rospy.Subscriber('/logic/controller', String, self.control_type_cb)
+        self.goal_sub = rospy.Subscriber('/logic/goal', PoseStamped, self.goal_cb)
+        self.plan_sub = rospy.Subscriber('/move_base/TrajectoryPlannerROS/global_plan', Path, self.plan_cb)
+
         
         # Publishers
         self.forklift_pub = rospy.Publisher('/airsim/forks', Int8, queue_size=1)
         self.goal_pose_pub = rospy.Publisher('/ml/goal_pose', PoseStamped, queue_size=10)
         self.local_waypoint_pub = rospy.Publisher('/ml/local_waypoint', PointStamped, queue_size=10)
         self.vehicle_command_pub = rospy.Publisher('/ml_cmd', AckermannDriveStamped, queue_size=1)
-        self.status_pub = rospy.Publisher('ml/goal_status', Bool, queue_size=1)
 
         self.tf_buffer = tf2_ros.Buffer(rospy.Duration(1.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
     def update(self):
-        if self.control_implemented == True:
-            speed, angle = self.control()
-            command_msg = self.setVehicleCommandMessage(speed, angle)
-            self.vehicle_command_pub.publish(command_msg)
-            self.status_pub.publish(self.status)
+        local_goal, direction = self.getGoals()
+        speed, angle = self.control(local_goal)
+        command_msg = self.setVehicleCommandMessage(speed*direction, angle*direction)
+        self.vehicle_command_pub.publish(command_msg)
+        self.status_pub.publish(self.status)
 
+    def getGoals():
+        if self.control_implementation is CONTROL.ALIGN:
+            global_goal, distance_from_goal = self.alignment_planner.update(self.sim_pose)
+            global_msg = self.setPointMsg(global_goal)
+            local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
+            local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
+            multiplier = -1
+        elif self.control_implementation is CONTROL.TRAVERSE:
+            self.tf_buffer.transform(self.global_path_goal, "base_link")
+            local_goal = [self.local_path_goal.pose.position.x, self.local_path_goal.pose.position.y]
+            multiplier = 1
+        else:
+            local_goal = [0,0]
+            multiplier = 0
+        return local_goal, multiplier
 
-    def control(self):
-        global_goal, distance_from_goal = self.planner.update(self.sim_pose)
-        global_msg = self.setPointMsg(global_goal)
-        local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
-
-        local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
-
+    def control(self, local_goal):
         steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal)
         self.publishPoseMsg(goal_angle)
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
         self.local_waypoint_pub.publish(local_goal_msg)
         if distance_from_goal > 0.5:
-            speed = -0.7
+            speed = 0.7
         else:
             speed = 0
             self.status = True
@@ -144,13 +160,19 @@ class NeuralNetworkController:
         orientation.z_val = goal_pose_msg.pose.orientation.z
         self.goal_pose = Pose(pos, orientation)
 
-    def control_cb(self, bool_msg):
+    def control_type_cb(self, string_msg):
         self.status = False
-        if bool_msg.data == "ml":
-            self.controller = SimpleController(self.goal_pose)
+        if string_msg.data == "align":
+            self.controller.reset(self.goal_pose)
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
-            self.planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
-            self.control_implemented = True
+            self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
+            self.control_implementation = CONTROL.ALIGN
+        elif string_msg.data == "traverse":
+            self.control_implementation = CONTROL.TRAVERSE
         else:
-            self.control_implemented = False
+            self.control_implementation = CONTROL.STOP
+
+
+    def plan_cb(self, plan_msg):
+        self.local_path_goal = plan_msg.poses[0]
 
