@@ -172,13 +172,13 @@ def train_one_epoch(sess, ops, train_writer):
 	current_data, current_distance, current_label, _ = provider.shuffle_data(current_data, current_distance, np.squeeze(current_label))            
 	current_label = np.squeeze(current_label)
 	
+	current_label = np.expand_dims(current_label, axis=1)
 	file_size = current_data.shape[0]
 	num_batches = file_size // BATCH_SIZE
 	
 	#total_correct = 0
 	#total_seen = 0
 	loss_sum = 0
-   
 	for batch_idx in range(num_batches):
 		start_idx = batch_idx * BATCH_SIZE
 		end_idx = (batch_idx+1) * BATCH_SIZE
@@ -188,7 +188,7 @@ def train_one_epoch(sess, ops, train_writer):
 		jittered_data = provider.jitter_point_cloud(current_data[start_idx:end_idx, :, :])
 		feed_dict = {ops['pointclouds_pl']: jittered_data,
 					 ops['distance_pl']: current_distance[start_idx:end_idx, :],
-					 ops['labels_pl']: current_label[start_idx:end_idx],
+					 ops['labels_pl']: current_label[start_idx:end_idx, :],
 					 ops['is_training_pl']: is_training,}
 		summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
 			ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
@@ -215,7 +215,8 @@ def eval_one_epoch(sess, ops, test_writer):
 	current_data, current_distance, current_label = provider.load_lidar_data(FLAGS.data_path, is_train=is_training)
 	current_data = current_data[:,0:NUM_POINT,:]
 	current_label = np.squeeze(current_label)
-	
+	current_label = np.expand_dims(current_label, axis=1)
+
 	file_size = current_data.shape[0]
 	num_batches = file_size // BATCH_SIZE
 	
@@ -225,7 +226,7 @@ def eval_one_epoch(sess, ops, test_writer):
 
 		feed_dict = {ops['pointclouds_pl']: current_data[start_idx:end_idx, :, :],
 					 ops['distance_pl']: current_distance[start_idx:end_idx, :],
-					 ops['labels_pl']: current_label[start_idx:end_idx],
+					 ops['labels_pl']: current_label[start_idx:end_idx, :],
 					 ops['is_training_pl']: is_training}
 		summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
 			ops['loss'], ops['pred']], feed_dict=feed_dict)
