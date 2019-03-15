@@ -58,7 +58,7 @@ def splitTrainValidationAndTestData(all_data_mappings, split_ratio=(0.7, 0.2, 0.
 
     return [train_data_mappings, validation_data_mappings, test_data_mappings]
     
-def generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const):
+def generateDataMapAirSim(folders, fl_origin, pdt_max, pdt_min, edt, num_points, z_const):
     """ Data map generator for simulator(AirSim) data. Reads the driving_log csv file and returns a list of 'center camera image name - label(s)' tuples
            Inputs:
                folders: list of folders to collect data from
@@ -87,7 +87,7 @@ def generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const):
             yaw = math.degrees(float(current_df.iloc[i][['Yaw']]))
             
 			# load pallets numpy
-            pallets = np.load(glob.glob(os.path.join(folder,"*.npy"))[0])
+            pallets = np.load(glob.glob(os.path.join(folder,"*.npy"))[0]) # assuming the in each record folder there is the relevant map (npy)
 			
             # build numpy of the values we want to subtract from the pallets values
             diff_values = np.array([[[pos_x, pos_y, pos_z], [0, 0, 0], [roll, pitch, yaw]]]*pallets.shape[0])
@@ -99,7 +99,7 @@ def generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const):
             relevant_pallets_list = []
             for j in range(pallets_relative.shape[0]):
                 # add the pallet to the list only if it close enough to the forklift
-                if np.linalg.norm(pallets_relative[j][0]) <= pdt:
+                if np.linalg.norm(pallets_relative[j][0]) <= pdt_max and np.linalg.norm(pallets_relative[j][0]) >= pdt_min:
                     relevant_pallets_list.append(pallets_relative[j])
             
             # if there is no nearby pallets, continue to the next sample
@@ -124,12 +124,12 @@ def generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const):
                 max_points = lidar_data_trimmed.shape[0]-num_points
                 
 				# calculate how many samples of lidar data will be added, depends on the amount of points we receive
-                num_of_samples = int(lidar_data_trimmed.shape[0]/num_points)
+                #num_of_samples = int(lidar_data_trimmed.shape[0]/num_points)
                 
-                for i in range(num_of_samples):
-                    rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:max_points]
-                    lidar_data_trimmed_temp = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
-                    lidar_data_samples.append(lidar_data_trimmed_temp)
+                #for i in range(num_of_samples):
+				rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:max_points]
+				lidar_data_trimmed_temp = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
+				lidar_data_samples.append(lidar_data_trimmed_temp)
             # randomly add points if there is not enough data points
             elif lidar_data_trimmed.shape[0] < num_points:
                 added_data_points = np.random.normal(loc=0.0, scale=edt, size=(num_points-lidar_data_trimmed.shape[0],3))
@@ -212,7 +212,7 @@ def saveH5pyData(data_mappings, target_file_path, chunk_size):
             row_count += lidar_data_chunk.shape[0]
             
             
-def cook(folders, output_directory, fl_origin, pdt, edt, num_points, z_const, train_eval_test_split, chunk_size):
+def cook(folders, output_directory, fl_origin, pdt_max, pdt_min, edt, num_points, z_const, train_eval_test_split, chunk_size):
     """ Primary function for data pre-processing. Reads and saves all data as h5 files.
             Inputs:
                 folders: a list of all data folders
@@ -224,7 +224,7 @@ def cook(folders, output_directory, fl_origin, pdt, edt, num_points, z_const, tr
        print("Preprocessed data already exists at: {0}. Skipping preprocessing.".format(output_directory))
 
     else:
-        all_data_mappings = generateDataMapAirSim(folders, fl_origin, pdt, edt, num_points, z_const)
+        all_data_mappings = generateDataMapAirSim(folders, fl_origin, pdt_max, pdt_min, edt, num_points, z_const)
         split_mappings = splitTrainValidationAndTestData(all_data_mappings, split_ratio=train_eval_test_split)
         
         for i in range(0, len(split_mappings)-1, 1):
