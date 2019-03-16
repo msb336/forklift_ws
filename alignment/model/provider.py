@@ -102,7 +102,7 @@ def load_lidar_data(data_path, is_train=True):
     #data = np.concatenate((lidar_data,distance), axis=1)
     
     # load distance and labels
-    distance = np.asarray(dataset['distance']) / 750.0
+    distance = np.asarray(dataset['distance']) / 350.0
     labels = np.asarray(dataset['label']) / 180.0
     labels = np.delete(labels, [0,1], 1) # predict only orientation on z-axis
 

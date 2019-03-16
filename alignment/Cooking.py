@@ -127,9 +127,9 @@ def generateDataMapAirSim(folders, fl_origin, pdt_max, pdt_min, edt, num_points,
                 #num_of_samples = int(lidar_data_trimmed.shape[0]/num_points)
                 
                 #for i in range(num_of_samples):
-				rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:max_points]
-				lidar_data_trimmed_temp = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
-				lidar_data_samples.append(lidar_data_trimmed_temp)
+                rejected_idxs = np.random.permutation(lidar_data_trimmed.shape[0])[:max_points]
+                lidar_data_trimmed_temp = np.delete(lidar_data_trimmed, rejected_idxs, axis=0)
+                lidar_data_samples.append(lidar_data_trimmed_temp)
             # randomly add points if there is not enough data points
             elif lidar_data_trimmed.shape[0] < num_points:
                 added_data_points = np.random.normal(loc=0.0, scale=edt, size=(num_points-lidar_data_trimmed.shape[0],3))

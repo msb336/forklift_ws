@@ -27,7 +27,9 @@ parser.add_argument('--optimizer', default='adam', help='adam or momentum [defau
 parser.add_argument('--decay_step', type=int, default=200000, help='Decay step for lr decay [default: 200000]')
 parser.add_argument('--decay_rate', type=float, default=0.7, help='Decay rate for lr decay [default: 0.8]')
 
-parser.add_argument('--data_path', type=str, default="..\\cooked_data", help='path to cooked data folder')
+parser.add_argument('--restore', type=str, default="", help='path to model file. The file name should be model.ckpt')
+# restore for example: C:\Users\user1\Documents\GitHub\forklift_ws\alignment\model\log\checkpoint_pointnet\model.ckpt
+parser.add_argument('--data_path', type=str, default="../cooked_data", help='path to cooked data folder')
 
 FLAGS = parser.parse_args()
 
@@ -96,7 +98,7 @@ def train():
             bn_decay = get_bn_decay(batch)
             tf.summary.scalar('bn_decay', bn_decay)
             
-            # Get model and loss 
+            # Get model and loss
             pred, end_points = MODEL.get_model(pointclouds_pl, distance_pl, is_training_pl, bn_decay=bn_decay)
             loss = MODEL.get_loss(pred, labels_pl, end_points)
             tf.summary.scalar('loss', loss)	
@@ -115,7 +117,10 @@ def train():
             train_op = optimizer.minimize(loss, global_step=batch)
             
             # Add ops to save and restore all the variables.
-            saver = tf.train.Saver()
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            variables = [x for x in variables if not x.name.startswith('fc3')]
+            
+            saver = tf.train.Saver(variables)
             
         # Create a session
         config = tf.ConfigProto()
@@ -124,6 +129,13 @@ def train():
         config.log_device_placement = False
         sess = tf.Session(config=config)
 
+        #lst = [n.name for n in tf.get_default_graph().as_graph_def().node]
+        #tf.get_default_graph().get_operations():
+
+        if FLAGS.restore != "":
+            # Restore variables from disk.
+            saver.restore(sess, FLAGS.restore)
+            log_string("Model restored.")
         # Add summary writers
         #merged = tf.merge_all_summaries()
         merged = tf.summary.merge_all()
