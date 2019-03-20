@@ -108,9 +108,15 @@ class NeuralNetworkController:
         self.local_waypoint_pub.publish(local_waypoint_msg)
         if distance_from_goal >= 5:
             speed = 2 
-        elif distance_from_goal > 0: 
-            speed = (distance_from_goal-2)/10 + 1 if (distance_from_goal-2)/5 > 0 else 1 
+        elif distance_from_goal > 4: 
+            speed = 0.8#(distance_from_goal-2)/10 + 0.7 if (distance_from_goal-2)/10 > 0 else 0.7 
+        elif distance_from_goal > 1:
+            speed = 1
+        elif distance_from_goal > 0:
+            speed = 0.5
             print(distance_from_goal, speed)
+        elif distance_from_goal > 0:
+            speed = 0.1
         else:
             speed = 0
             self.status = True

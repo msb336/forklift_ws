@@ -136,14 +136,15 @@ class GOAL:
 
 class FORKS(Enum):
     DOWN    = 1
-    UP      = 2
-    MOVING  = 3
+    HALFWAY = 2
+    UP      = 3
+    MOVING  = 4
 
 class ForkliftOperator:
     command     = 0
     calls       = 0
     status      = FORKS.DOWN
-
+    lift_time = 4 
     def lift(self):
         finished = False
         if self.status is FORKS.UP:
@@ -152,7 +153,7 @@ class ForkliftOperator:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lifting")
-        if time.time() - self.start_time < 2:
+        if time.time() - self.start_time < self.lift_time:
                 self.command = 1
         else:
             self.command = 0
@@ -163,14 +164,29 @@ class ForkliftOperator:
 
     def lower(self):
         finished = True
-        if self.status is FORKS.DOWN:
-            finished = True
+        if self.status is FORKS.HALFWAY:
+            finished = False
         elif self.status is not FORKS.MOVING:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lowering")
-        if time.time() - self.start_time < 2.1:
+        if time.time() - self.start_time < self.lift_time/2 + 1:
                 self.command = 2
+        else:
+            self.command = 0
+            self.status = FORKS.HALFWAY
+            finished = False
+        return finished
+    def drop(self):
+        finished = True
+        if self.status is FORKS.DOWN:
+            finished = False
+        elif self.status is not FORKS.MOVING:
+            self.start_time = time.time()
+            self.status = FORKS.MOVING
+            print("lowering")
+        if time.time() - self.start_time < self.lift_time/2 + 1:
+            self.command = 2
         else:
             self.command = 0
             self.status = FORKS.DOWN
@@ -241,6 +257,7 @@ class LogicDistributor:
         elif self.control_logic is TASK.GO_HOME:
             self.goHome()
         elif self.control_logic is TASK.CHARGE:
+            self.forklift_operator.drop()
             self.charge()
         else:
             self.idle()
@@ -378,10 +395,16 @@ class LogicDistributor:
 
         self.loading_goal_x = -16.46 #self.pallet_location.pose.position.x 
         self.loading_goal_y = 33.1 #self.pallet_location.pose.position.y
-        self.package_pickup_msg = self.pallet_location
+        self.package_pickup_msg = PoseStamped()
+        self.package_pickup_msg.header.stamp = rospy.get_rostime()
+        self.package_pickup_msg.header.frame_id = "world"
         self.package_pickup_msg.pose.position.x = self.loading_goal_x
         self.package_pickup_msg.pose.position.y = self.loading_goal_y
-        self.package_pickup_msg.pose.orientation.z = -self.pallet_location.pose.orientation.z
+        self.package_pickup_msg.pose.position.z =  0.178449928761
+        self.package_pickup_msg.pose.orientation.z = -0.71325
+        self.package_pickup_msg.pose.orientation.x = 0 
+        self.package_pickup_msg.pose.orientation.y = 0
+        self.package_pickup_msg.pose.orientation.w = 0.707
         world_pose_msg = self.package_pickup_msg
 
         x = world_pose_msg.pose.position.x
@@ -447,8 +470,8 @@ class LogicDistributor:
    #     #self.package_pickup_msg.header.seq = 1
    #     #self.package_pickup_msg.header.frame_id = "world"
     def setDeliveryGoal(self):
-        self.delivery_goal_x = -2
-        self.delivery_goal_y = 11
+        self.delivery_goal_x = -2.3 #-2
+        self.delivery_goal_y = 13.7
         self.dropoff_exact_msg = PoseStamped()
         self.dropoff_exact_msg.pose.position.x = self.delivery_goal_x
         self.dropoff_exact_msg.pose.position.y = self.delivery_goal_y
@@ -460,7 +483,7 @@ class LogicDistributor:
         self.dropoff_exact_msg.header.seq = 1
         self.dropoff_exact_msg.header.frame_id = "world"
 
-        self.dropzone_goal_x, self.dropzone_goal_y = linearExtension(self.delivery_goal_x,self.delivery_goal_y,[dqw,dqx,dqy,dqz], 4)
+        self.dropzone_goal_x, self.dropzone_goal_y = linearExtension(self.delivery_goal_x,self.delivery_goal_y,[dqw,dqx,dqy,dqz], 6.5)
 
         self.dropzone_msg = PoseStamped()
         self.dropzone_msg.pose.position.x = self.dropzone_goal_x
@@ -474,10 +497,10 @@ class LogicDistributor:
         self.dropzone_msg.header.frame_id = "world"
 
     def setHomeGoal(self):
-        self.charger_goal_x = 11.5
-        self.charger_goal_y = -9.0
-        self.home_goal_x = 11.5 
-        self.home_goal_y = -6.0
+        self.charger_goal_x = 11.7
+        self.charger_goal_y = -8.5
+        self.home_goal_x = 11.7 
+        self.home_goal_y = -5.0
         self.home_location_msg = PoseStamped()
         self.home_location_msg.pose.position.x = self.home_goal_x
         self.home_location_msg.pose.position.y = self.home_goal_y
