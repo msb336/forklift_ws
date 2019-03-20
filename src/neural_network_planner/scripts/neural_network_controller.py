@@ -15,7 +15,7 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 
-from std_msgs.msg import Bool, Int8, String
+from std_msgs.msg import Bool, Int8, String, Float64
 
 from tf2_msgs.msg import TFMessage
 from geometry_msgs.msg import TwistStamped, Twist
@@ -29,6 +29,7 @@ from std_srvs.srv import Empty, EmptyResponse
 import sys
 sys.path.append('/home/matt/forklift_ws/rl')
 from SimpleController import *
+from PID import *
 from enum import Enum
 
 def printPose(pose, name = ""):
@@ -46,13 +47,15 @@ class NeuralNetworkController:
 
     def __init__(self):
         self.controller = SimpleController()
+        self.speed_controller = PID(1,0, 0.6)
+        self.car_speed = 0
         self.setup_ros()
         self.control_implementation = CONTROL.STOP
-        self.global_path_goal = PoseStamped()
-    
+        self.global_path_goal = PoseStamped() 
     def setup_ros(self):
         # Subscribers
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb) # redundant
+        self.speed_sub = rospy.Subscriber("/airsim/speed", Float64, self.speed_cb)
         self.control_type_sub = rospy.Subscriber('/logic/controller', String, self.control_type_cb)
         self.goal_sub = rospy.Subscriber('/ml/goal', PoseStamped, self.goal_cb)
         self.plan_sub = rospy.Subscriber('/move_base/TrajectoryPlannerROS/global_plan', Path, self.plan_cb)
@@ -69,13 +72,14 @@ class NeuralNetworkController:
 
     def update(self):
         local_goal, direction, distance = self.getGoals()
-        speed, angle  = self.control(local_goal, distance, direction)
-        command_msg = self.setVehicleCommandMessage(speed*direction, angle*direction)
+        throttle, angle  = self.control(local_goal, distance, direction)
+        command_msg = self.setVehicleCommandMessage(throttle*np.sign(direction), angle)
         self.vehicle_command_pub.publish(command_msg)
 
     def getGoals(self):
         if self.control_implementation is CONTROL.ALIGN:
             global_goal, distance_from_goal = self.alignment_planner.update(self.sim_pose)
+            distance_from_goal = np.abs(distance_from_goal)
             global_msg = self.setPointMsg(global_goal)
             local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
             local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
@@ -88,7 +92,7 @@ class NeuralNetworkController:
                 local_goal_msg.pose.position.x = 0
                 local_goal_msg.pose.position.y = 0 
             local_goal = [local_goal_msg.pose.position.x, local_goal_msg.pose.position.y]
-            distance_from_goal = 1
+            distance_from_goal = 5 
             multiplier = 1/0.7
         else:
             local_goal = [0,0]
@@ -102,12 +106,21 @@ class NeuralNetworkController:
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
         self.local_waypoint_pub.publish(local_waypoint_msg)
-        if distance_from_goal > 0.5:
-            speed = 0.7
+        if distance_from_goal >= 5:
+            speed = 2 
+        elif distance_from_goal > 0: 
+            speed = (distance_from_goal-2)/10 + 1 if (distance_from_goal-2)/5 > 0 else 1 
+            print(distance_from_goal, speed)
         else:
             speed = 0
             self.status = True
-        return speed, steering_angle
+        if speed != 0:
+            throttle = self.speed_controller.update(speed, np.abs(self.car_speed), time.time()) 
+
+        else:
+            throttle = speed
+        #print("[controller]: distance {} speed {} throttle {}".format(distance_from_goal, speed, throttle))
+        return throttle, steering_angle*direction
 
 
 
@@ -167,18 +180,21 @@ class NeuralNetworkController:
         orientation.y_val = goal_pose_msg.pose.orientation.y
         orientation.z_val = goal_pose_msg.pose.orientation.z
         self.goal_pose = Pose(pos, orientation)
+        self.controller.reset(self.goal_pose)
 
     def control_type_cb(self, string_msg):
         self.status = False
         if string_msg.data == "align":
             self.controller.reset(self.goal_pose)
-            self.controller.setGains(1,0,0.2)
+            self.controller.setGains(0.4,0,0.4)
+            self.speed_controller = PID(1, 0, 0.2)
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
             self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
             self.control_implementation = CONTROL.ALIGN
         elif string_msg.data == "traverse":
             self.control_implementation = CONTROL.TRAVERSE
             self.controller.setGains(0.3,0, 0)
+            self.speed_controller = PID(1,0,0.6)
         else:
             self.control_implementation = CONTROL.STOP
 
@@ -190,3 +206,5 @@ class NeuralNetworkController:
             self.global_path_goal = plan_msg.poses[0]
 
 
+    def speed_cb(self, speed_msg):
+        self.car_speed = speed_msg.data

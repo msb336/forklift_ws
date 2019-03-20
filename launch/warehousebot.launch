@@ -1,16 +1,17 @@
 <launch>
     <node pkg="centralized_logic" type="logic_node.py" name="logic_node" output="screen"/>
-    <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" />
+    <node pkg="airsim_ros_pkgs" type="airsim_node.py" name="airsim_node" output="screen"/>
     <node pkg="tf" type="static_transform_publisher" name="enu_tf" args="0 0 0 1 0 0 0 /world /enu 100" />
+    <node pkg="tf" type="static_transform_publisher" name="map_tf" args="0 0 0 0 0 0 1 /enu /map 100" />
+    <node name="map_node" pkg="map_server" type="map_server" args="/home/matt/forklift_ws/map.yaml" respawn="false" />
     <node pkg="costmap_2d" type="costmap_2d_node" name="costmap_node" output="log">
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="costmap" />
         <rosparam file="planner-params/local_costmap_params.yaml" command="load"  />
         <rosparam file="planner-params/global_costmap_params.yaml" command="load"  />
-
     </node>
     <node pkg="neural_network_planner" type="nn_node.py" name="nn_node" />
     <node pkg="airsim_ros_pkgs" type="ackermann_converter_node.py" name="control_converter" />
-    <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <node pkg="move_base" type="move_base" name="move_base" >
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="global_costmap" />
 	<remap from="move_base_simple/goal" to="airsim/goal" />
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="local_costmap" />

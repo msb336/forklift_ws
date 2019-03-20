@@ -7,7 +7,7 @@ from rosgraph_msgs.msg import Clock
 from tf2_geometry_msgs import PoseStamped
 
 from std_msgs.msg import Bool, Int8, String
-
+from actionlib_msgs.msg import GoalID
 from tf2_msgs.msg import TFMessage
 import tf2_ros
 from tf_conversions import transformations
@@ -169,7 +169,7 @@ class ForkliftOperator:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lowering")
-        if time.time() - self.start_time < 2:
+        if time.time() - self.start_time < 2.1:
                 self.command = 2
         else:
             self.command = 0
@@ -206,6 +206,7 @@ class LogicDistributor:
 
         self.delivery_sub = rospy.Subscriber("/pickup", PoseStamped, self.pickup_cb)
         self.pose_sub = rospy.Subscriber("/airsim/pose", PoseStamped, self.pose_cb)
+        self.pallet_sub = rospy.Subscriber("/airsim/pallet_pose", PoseStamped, self.pallet_location_cb)
 
         self.traverse_goal_pub = rospy.Publisher("/airsim/goal", PoseStamped, queue_size=1)
         self.align_goal_pub = rospy.Publisher("/ml/goal", PoseStamped, queue_size=1)
@@ -214,10 +215,11 @@ class LogicDistributor:
         self.control_logic_pub = rospy.Publisher("/logic/controller", String, queue_size=1)
 
         self.forklift_pub = rospy.Publisher("/airsim/forks", Int8, queue_size=1)
+        self.move_base_cancel_pub = rospy.Publisher("/move_base/cancel", GoalID, queue_size = 10)
 
         self.setDeliveryGoal()
         self.setHomeGoal()
-        self.setPickupGoal()
+        #self.setPickupGoal()
         
 
 
@@ -251,11 +253,11 @@ class LogicDistributor:
 ######### control logic ####################
     def checkDistance(self):
         self.distance_from_goal = np.linalg.norm(np.array((self.robot_x-self.goal_x, self.robot_y - self.goal_y)))
-        if self.operation_status is OPERATION.TRAVERSING and self.distance_from_goal < 3:
+        if self.operation_status is OPERATION.TRAVERSING and self.distance_from_goal < 2:
             self.goal_status.traversed = True
         if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 0.9:
-            self.goal_status.aligned = True
 
+            self.goal_status.aligned = True
     def determineGoal(self):
         if self.goal_status.pickup_requested:
             if self.goal_status.traversed is False:
@@ -271,10 +273,12 @@ class LogicDistributor:
 
         elif self.goal_status.loaded:
             if self.goal_status.traversed is False:
-                self.goal_x = self.delivery_goal_x
-                self.goal_y = self.delivery_goal_y
+                self.goal_x = self.dropzone_goal_x
+                self.goal_y = self.dropzone_goal_y
                 self.control_logic = TASK.DELIVER
             elif self.goal_status.aligned is False:
+                self.goal_x = self.delivery_goal_x
+                self.goal_y = self.delivery_goal_y
                 self.control_logic = TASK.ALIGN_DELIVERY
             else:
                 self.control_logic = TASK.UNLOAD
@@ -284,8 +288,8 @@ class LogicDistributor:
                 self.goal_y = self.home_goal_y
                 self.control_logic = TASK.GO_HOME
             elif self.goal_status.aligned is False:
-                self.goal_x = self.home_goal_x
-                self.goal_y = self.home_goal_y
+                self.goal_x = self.charger_goal_x
+                self.goal_y = self.charger_goal_y
                 self.control_logic = TASK.CHARGE
             else:
                 self.control_logic = TASK.IDLE
@@ -306,12 +310,14 @@ class LogicDistributor:
             self.goal_status = GOAL()
     def pickup(self):
         if self.operation_status is not OPERATION.TRAVERSING:
+            #self.setPickupGoal()
             print("heading to pickup location")
             self.controller = "traverse"
             self.operation_status = OPERATION.TRAVERSING
             self.goal_status.delivery_complete = False
     def alignPickup(self):
         if self.operation_status is not OPERATION.ALIGNING:
+            self.move_base_cancel_pub.publish(GoalID())
             self.align_goal_pub.publish(self.package_pickup_msg)
             print("aligning with package")
             self.controller = "align"
@@ -335,12 +341,13 @@ class LogicDistributor:
 
     def alignDelivery(self):
         if self.operation_status is not OPERATION.ALIGNING:
-            self.align_goal_pub.publish(self.dropzone_msg)
+            self.align_goal_pub.publish(self.dropoff_exact_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with delivery zone")
             self.controller = "align"
 
     def unload(self):
+        self.controller = ""
         self.operation_status = OPERATION.MOVING_FORKS
         self.goal_status.loaded = self.forklift_operator.lower()
         if not self.goal_status.loaded:
@@ -358,7 +365,7 @@ class LogicDistributor:
 
     def charge(self):
         if self.operation_status is not OPERATION.ALIGNING:
-            self.align_goal_pub.publish(self.home_location_msg)
+            self.align_goal_pub.publish(self.charger_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
             self.controller = "align"
@@ -368,7 +375,15 @@ class LogicDistributor:
 ######## ROS MSG CALLBACKS ##################
     # User goal setting subscriber callback
     def pickup_cb(self,pose_msg):
+
+        self.loading_goal_x = -16.46 #self.pallet_location.pose.position.x 
+        self.loading_goal_y = 33.1 #self.pallet_location.pose.position.y
+        self.package_pickup_msg = self.pallet_location
+        self.package_pickup_msg.pose.position.x = self.loading_goal_x
+        self.package_pickup_msg.pose.position.y = self.loading_goal_y
+        self.package_pickup_msg.pose.orientation.z = -self.pallet_location.pose.orientation.z
         world_pose_msg = self.package_pickup_msg
+
         x = world_pose_msg.pose.position.x
         y = world_pose_msg.pose.position.y
         z = world_pose_msg.pose.position.z
@@ -379,7 +394,7 @@ class LogicDistributor:
         qy = world_pose_msg.pose.orientation.y
 #        self.loading_goal_x = x
 #        self.loading_goal_y = y
-        self.pickup_goal_x, self.pickup_goal_y = linearExtension(self.loading_goal_x,self.loading_goal_y,[qw,qx,qy,qz], 4)
+        self.pickup_goal_x, self.pickup_goal_y = linearExtension(self.loading_goal_x,self.loading_goal_y,[qw,qx,qy,qz], 6)
         goal_theta = world_pose_msg.pose.orientation.z
         
         self.airsim_goal_msg = PoseStamped()
@@ -410,40 +425,59 @@ class LogicDistributor:
         self.robot_x = robot_pose_msg.pose.position.x
         self.robot_y = robot_pose_msg.pose.position.y
 
+    def pallet_location_cb(self, pallet_pose_msg):
+        self.pallet_location = pallet_pose_msg
 
 
 ################## MSG CREATORS ######################################
 
-    def setPickupGoal(self):
-        self.loading_goal_x = -34.5 
-        self.loading_goal_y = 34
-        self.package_pickup_msg = PoseStamped()
-        self.package_pickup_msg.pose.position.x = self.loading_goal_x
-        self.package_pickup_msg.pose.position.y = self.loading_goal_y
-        self.package_pickup_msg.pose.position.z = 0
-        self.package_pickup_msg.pose.orientation.w = 0.7
-        self.package_pickup_msg.pose.orientation.x = 0
-        self.package_pickup_msg.pose.orientation.y = 0
-        self.package_pickup_msg.pose.orientation.z =  -0.713 
-        self.package_pickup_msg.header.seq = 1
-        self.package_pickup_msg.header.frame_id = "world"
+   # def setPickupGoal(self):
+   #     self.loading_goal_x = self.pallet_location.pose.position.x#-34.5 
+   #     self.loading_goal_y = self.pallet_location.pose.position.y#34
+   #     self.package_pickup_msg = self.pallet_location
+   #     self.package_pickup_msg.pose.orientation.z = -self.pallet_location.pose.orientation.z
+   #     #self.package_pickup_msg = PoseStamped()
+   #     #self.package_pickup_msg.pose.position.x = self.loading_goal_x
+   #     #self.package_pickup_msg.pose.position.y = self.loading_goal_y
+   #     #self.package_pickup_msg.pose.position.z = 0
+   #     #self.package_pickup_msg.pose.orientation.w = 0.7
+   #     #self.package_pickup_msg.pose.orientation.x = 0
+   #     #self.package_pickup_msg.pose.orientation.y = 0
+   #     #self.package_pickup_msg.pose.orientation.z =  -0.713 
+   #     #self.package_pickup_msg.header.seq = 1
+   #     #self.package_pickup_msg.header.frame_id = "world"
     def setDeliveryGoal(self):
-        self.delivery_goal_x = 0.5
-        self.delivery_goal_y = 27
+        self.delivery_goal_x = -2
+        self.delivery_goal_y = 11
+        self.dropoff_exact_msg = PoseStamped()
+        self.dropoff_exact_msg.pose.position.x = self.delivery_goal_x
+        self.dropoff_exact_msg.pose.position.y = self.delivery_goal_y
+        self.dropoff_exact_msg.pose.position.z = 0
+        self.dropoff_exact_msg.pose.orientation.w = dqw = 0.707
+        self.dropoff_exact_msg.pose.orientation.x =dqx= 0
+        self.dropoff_exact_msg.pose.orientation.y =dqy= 0
+        self.dropoff_exact_msg.pose.orientation.z =dqz= -0.707 
+        self.dropoff_exact_msg.header.seq = 1
+        self.dropoff_exact_msg.header.frame_id = "world"
+
+        self.dropzone_goal_x, self.dropzone_goal_y = linearExtension(self.delivery_goal_x,self.delivery_goal_y,[dqw,dqx,dqy,dqz], 4)
+
         self.dropzone_msg = PoseStamped()
-        self.dropzone_msg.pose.position.x = self.delivery_goal_x
-        self.dropzone_msg.pose.position.y = self.delivery_goal_y
+        self.dropzone_msg.pose.position.x = self.dropzone_goal_x
+        self.dropzone_msg.pose.position.y = self.dropzone_goal_y
         self.dropzone_msg.pose.position.z = 0
-        self.dropzone_msg.pose.orientation.w = 0 
-        self.dropzone_msg.pose.orientation.x = 0
-        self.dropzone_msg.pose.orientation.y = 0
-        self.dropzone_msg.pose.orientation.z = 1 
+        self.dropzone_msg.pose.orientation.w = dqw = 0.707
+        self.dropzone_msg.pose.orientation.x =dqx= 0
+        self.dropzone_msg.pose.orientation.y =dqy= 0
+        self.dropzone_msg.pose.orientation.z =dqz= -0.707 
         self.dropzone_msg.header.seq = 1
         self.dropzone_msg.header.frame_id = "world"
 
     def setHomeGoal(self):
-        self.home_goal_x = 0.0
-        self.home_goal_y = 0.0
+        self.charger_goal_x = 11.5
+        self.charger_goal_y = -9.0
+        self.home_goal_x = 11.5 
+        self.home_goal_y = -6.0
         self.home_location_msg = PoseStamped()
         self.home_location_msg.pose.position.x = self.home_goal_x
         self.home_location_msg.pose.position.y = self.home_goal_y
@@ -455,3 +489,13 @@ class LogicDistributor:
         self.home_location_msg.header.seq = 1
         self.home_location_msg.header.frame_id = "world"
     
+        self.charger_msg = PoseStamped()
+        self.charger_msg.pose.position.x = self.charger_goal_x
+        self.charger_msg.pose.position.y = self.charger_goal_y
+        self.charger_msg.pose.position.z = 0
+        self.charger_msg.pose.orientation.w = 0.707 
+        self.charger_msg.pose.orientation.x = 0
+        self.charger_msg.pose.orientation.y = 0
+        self.charger_msg.pose.orientation.z = 0.707
+        self.charger_msg.header.seq = 1
+        self.charger_msg.header.frame_id = "world"

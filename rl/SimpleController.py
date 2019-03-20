@@ -7,10 +7,11 @@ from simfunctions import *
 
 # forklift control logic
 def clip(value):
-    if value > 1:
-        value = 1
-    elif value < -1:
-        value = -1
+    max_value = 1 
+    if value > max_value:
+        value =max_value 
+    elif value < -max_value:
+        value = -max_value
     return value
 class SimpleController(Reward):
 
@@ -114,7 +115,7 @@ class ForkliftPlanner():
     def setGoal(self):
         forklift_in_goal_frame = self.global_to_pallet(self.global_position)
         self.distance = forklift_in_goal_frame[0][0]
-        goal_point = np.asarray(([self.distance - 1.5], [0], [1] ))
+        goal_point = np.asarray(([self.distance - 1.2], [0], [1] ))
         self.global_goal = self.pallet_to_global(goal_point)
 
 
