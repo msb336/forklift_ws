@@ -37,10 +37,11 @@ def printPose(pose, name = ""):
     print("position ({}, {}, {}".format( pose.position.x_val, pose.position.y_val, pose.position.z_val))
     print("orientation ({}, {}, {}, {})".format(pose.orientation.w_val, pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val))
 
-class CONTROL(Enum):
-    STOP = 0
-    TRAVERSE = 1
-    ALIGN = 2
+#class CONTROL(Enum):
+#    STOP = 0
+#    TRAVERSE = 1
+#    ALIGN = 2
+#    CHARGE = 3
 
 class NeuralNetworkController:
     
@@ -84,6 +85,14 @@ class NeuralNetworkController:
             local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
             local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
             multiplier = -1
+        elif self.control_implementation is CONTROL.CHARGE:
+            global_goal, distance_from_goal = self.alignment_planner.update(self.sim_pose)
+            distance_from_goal = np.abs(distance_from_goal)+1
+
+            global_msg = self.setPointMsg(global_goal)
+            local_goal_msg = self.tf_buffer.transform(global_msg, 'base_link', rospy.Duration(1.0))
+            local_goal = [local_goal_msg.point.x, local_goal_msg.point.y]
+            multiplier = 1 
         elif self.control_implementation is CONTROL.TRAVERSE and self.global_path_goal.header.frame_id is not "":
             try:
                 local_goal_msg = self.tf_buffer.transform(self.global_path_goal, "base_link", rospy.Duration(1.0))
@@ -101,7 +110,7 @@ class NeuralNetworkController:
         return local_goal, multiplier, distance_from_goal
 
     def control(self, local_goal, distance_from_goal, direction):
-        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal, direction)
+        steering_angle, goal_angle = self.controller.calculateMotorControl(local_goal, direction, self.control_implementation)
         self.publishPoseMsg(goal_angle)
         
         local_waypoint_msg = self.setPointMsg(local_goal, "base_link")
@@ -111,7 +120,10 @@ class NeuralNetworkController:
         elif distance_from_goal > 4: 
             speed = 0.8#(distance_from_goal-2)/10 + 0.7 if (distance_from_goal-2)/10 > 0 else 0.7 
         elif distance_from_goal > 1:
-            speed = 1
+            if self.control_implementation is CONTROL.ALIGN:
+                speed = 1
+            else:
+                speed = 0.7
         elif distance_from_goal > 0:
             speed = 0.5
             print(distance_from_goal, speed)
@@ -195,12 +207,19 @@ class NeuralNetworkController:
             self.controller.setGains(0.4,0,0.4)
             self.speed_controller = PID(1, 0, 0.2)
             [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
-            self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset)
+            self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset, -1.2)
             self.control_implementation = CONTROL.ALIGN
         elif string_msg.data == "traverse":
             self.control_implementation = CONTROL.TRAVERSE
             self.controller.setGains(0.3,0, 0)
             self.speed_controller = PID(1,0,0.6)
+        elif string_msg.data == "charge":
+            self.controller.reset(self.goal_pose)
+            self.controller.setGains(0.4,0,0.1)
+            self.speed_controller = PID(1, 0, 0.2)
+            [init_offset, angle, init_dist] = self.controller.getOffset(self.sim_pose)
+            self.alignment_planner = ForkliftPlanner(self.goal_pose, init_dist, init_offset, -1.2)
+            self.control_implementation = CONTROL.CHARGE
         else:
             self.control_implementation = CONTROL.STOP
 

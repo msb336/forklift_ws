@@ -119,6 +119,7 @@ class TASK(Enum):
     GO_HOME         = 7
     CHARGE          = 8
     IDLE            = 9
+    BACKUP          = 10
 class OPERATION(Enum):
     TRAVERSING      = 1
     ALIGNING        = 2
@@ -132,6 +133,7 @@ class GOAL:
         self.loaded             = False
         self.pickup_requested   = False
         self.delivery_complete  = False
+        self.charging           = False
 
 
 class FORKS(Enum):
@@ -139,12 +141,29 @@ class FORKS(Enum):
     HALFWAY = 2
     UP      = 3
     MOVING  = 4
+    SEMI    = 5
 
 class ForkliftOperator:
     command     = 0
     calls       = 0
     status      = FORKS.DOWN
-    lift_time = 4 
+    lift_time   = 3.5
+    def get(self):
+        finished = False
+        if self.status is FORKS.SEMI:
+            finished = True
+        elif self.status is not FORKS.MOVING:
+            self.start_time = time.time()
+            self.status = FORKS.MOVING
+            print("lifting pallet")
+        if time.time() - self.start_time < 0.5:
+                self.command = 1
+        else:
+            self.command = 0
+            self.status = FORKS.SEMI
+            finished = True
+            return finished
+
     def lift(self):
         finished = False
         if self.status is FORKS.UP:
@@ -185,7 +204,7 @@ class ForkliftOperator:
             self.start_time = time.time()
             self.status = FORKS.MOVING
             print("lowering")
-        if time.time() - self.start_time < self.lift_time/2 + 1:
+        if time.time() - self.start_time < self.lift_time/2 + 4.5 and time.time()-self.start_time > 3.5:
             self.command = 2
         else:
             self.command = 0
@@ -255,10 +274,12 @@ class LogicDistributor:
         elif self.control_logic is TASK.UNLOAD:
             self.unload()
         elif self.control_logic is TASK.GO_HOME:
+            self.forklift_operator.drop()
             self.goHome()
         elif self.control_logic is TASK.CHARGE:
-            self.forklift_operator.drop()
             self.charge()
+        elif self.control_logic is TASK.BACKUP:
+            self.backup()
         else:
             self.idle()
 
@@ -270,14 +291,25 @@ class LogicDistributor:
 ######### control logic ####################
     def checkDistance(self):
         self.distance_from_goal = np.linalg.norm(np.array((self.robot_x-self.goal_x, self.robot_y - self.goal_y)))
+        if self.control_logic is TASK.CHARGE:
+            self.distance_from_goal += 0.5
         if self.operation_status is OPERATION.TRAVERSING and self.distance_from_goal < 2:
             self.goal_status.traversed = True
-        if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 0.9:
+        if self.operation_status is OPERATION.ALIGNING and self.distance_from_goal < 0.8:
+            if self.control_logic is TASK.CHARGE:
+                self.goal_status.charging = True
+            if self.control_logic is not TASK.BACKUP:
+                self.goal_status.aligned = True
+            else:
+                self.goal_status.charging = False
 
-            self.goal_status.aligned = True
     def determineGoal(self):
         if self.goal_status.pickup_requested:
-            if self.goal_status.traversed is False:
+            if self.goal_status.charging is True:
+                self.goal_x = self.home_goal_x
+                self.goal_y = self.home_goal_y
+                self.control_logic = TASK.BACKUP
+            elif self.goal_status.traversed is False:
                 self.goal_x = self.pickup_goal_x
                 self.goal_y = self.pickup_goal_y
                 self.control_logic = TASK.PICKUP
@@ -324,7 +356,9 @@ class LogicDistributor:
             self.operation_status = OPERATION.IDLE
             print("idling")
             self.controller = ""
+            charge_status = self.goal_status.charging
             self.goal_status = GOAL()
+            self.goal_status.charging = charge_status
     def pickup(self):
         if self.operation_status is not OPERATION.TRAVERSING:
             #self.setPickupGoal()
@@ -344,7 +378,7 @@ class LogicDistributor:
         self.controller = ""
         self.operation_status = OPERATION.MOVING_FORKS
         ## Raise forks
-        self.goal_status.loaded = self.forklift_operator.lift()
+        self.goal_status.loaded = self.forklift_operator.get()
         if self.goal_status.loaded:
             self.goal_status.traversed = False
             self.goal_status.aligned = False
@@ -357,6 +391,7 @@ class LogicDistributor:
             self.controller = "traverse"
 
     def alignDelivery(self):
+        self.forklift_operator.lift()
         if self.operation_status is not OPERATION.ALIGNING:
             self.align_goal_pub.publish(self.dropoff_exact_msg)
             self.operation_status = OPERATION.ALIGNING
@@ -385,6 +420,12 @@ class LogicDistributor:
             self.align_goal_pub.publish(self.charger_msg)
             self.operation_status = OPERATION.ALIGNING
             print("aligning with charger")
+            self.controller = "charge"
+    def backup(self):
+        if self.operation_status is not OPERATION.ALIGNING:
+            self.align_goal_pub.publish(self.home_location_msg)
+            self.operation_status = OPERATION.ALIGNING
+            print("backing out of charging station")
             self.controller = "align"
 
 
@@ -453,22 +494,6 @@ class LogicDistributor:
 
 
 ################## MSG CREATORS ######################################
-
-   # def setPickupGoal(self):
-   #     self.loading_goal_x = self.pallet_location.pose.position.x#-34.5 
-   #     self.loading_goal_y = self.pallet_location.pose.position.y#34
-   #     self.package_pickup_msg = self.pallet_location
-   #     self.package_pickup_msg.pose.orientation.z = -self.pallet_location.pose.orientation.z
-   #     #self.package_pickup_msg = PoseStamped()
-   #     #self.package_pickup_msg.pose.position.x = self.loading_goal_x
-   #     #self.package_pickup_msg.pose.position.y = self.loading_goal_y
-   #     #self.package_pickup_msg.pose.position.z = 0
-   #     #self.package_pickup_msg.pose.orientation.w = 0.7
-   #     #self.package_pickup_msg.pose.orientation.x = 0
-   #     #self.package_pickup_msg.pose.orientation.y = 0
-   #     #self.package_pickup_msg.pose.orientation.z =  -0.713 
-   #     #self.package_pickup_msg.header.seq = 1
-   #     #self.package_pickup_msg.header.frame_id = "world"
     def setDeliveryGoal(self):
         self.delivery_goal_x = -2.3 #-2
         self.delivery_goal_y = 13.7
@@ -498,9 +523,9 @@ class LogicDistributor:
 
     def setHomeGoal(self):
         self.charger_goal_x = 11.7
-        self.charger_goal_y = -8.5
+        self.charger_goal_y = -9
         self.home_goal_x = 11.7 
-        self.home_goal_y = -5.0
+        self.home_goal_y = -4.0
         self.home_location_msg = PoseStamped()
         self.home_location_msg.pose.position.x = self.home_goal_x
         self.home_location_msg.pose.position.y = self.home_goal_y
@@ -511,7 +536,10 @@ class LogicDistributor:
         self.home_location_msg.pose.orientation.z = 0.707
         self.home_location_msg.header.seq = 1
         self.home_location_msg.header.frame_id = "world"
-    
+        
+        self.backup_msg = self.home_location_msg
+        self.backup_msg.pose.orientation.z = -0.707
+        
         self.charger_msg = PoseStamped()
         self.charger_msg.pose.position.x = self.charger_goal_x
         self.charger_msg.pose.position.y = self.charger_goal_y

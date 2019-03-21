@@ -3,7 +3,13 @@ from PID import *
 import time 
 import numpy as np
 from simfunctions import *
+from enum import Enum
 
+class CONTROL(Enum):
+    STOP = 0
+    TRAVERSE = 1
+    ALIGN = 2
+    CHARGE = 3
 
 # forklift control logic
 def clip(value):
@@ -16,7 +22,7 @@ def clip(value):
 class SimpleController(Reward):
 
     pid_control = PID(1,0,0.2,2)
-    def calculateMotorControl(self, goal, action):
+    def calculateMotorControl(self, goal, action, control_type=0):
         if action == -1:
             if goal[0] != 0:
                 des_angle = np.arctan(goal[1]/goal[0]) 
@@ -34,8 +40,9 @@ class SimpleController(Reward):
                 des_angle = 0
             if goal[0] < 0:
                 des_angle -= np.sign(des_angle)*np.pi
+            #if control_type == CONTROL.CHARGE:
+             #   des_angle -= np.pi/2 * np.sign(des_angle)
         input = clip(self.pid_control.update(des_angle, 0, time.time()))
-        #print(goal[0], goal[1], des_angle)
 
         return input, des_angle
     def setGains(self, p,i,d):
@@ -48,7 +55,8 @@ class SimpleController(Reward):
 # forklift path planner
 class ForkliftPlanner():
     seq = 0
-    def __init__(self, pallet_pose, dist, y_offset, tolerance=0.2):
+    def __init__(self, pallet_pose, dist, y_offset, lookahead_distance, tolerance=0.2):
+        self.lookahead = lookahead_distance
         self.tolerance = 0.2
         self.initialize(pallet_pose, dist, y_offset)
     def initialize(self, pallet_pose, dist, y_offset):
@@ -115,7 +123,7 @@ class ForkliftPlanner():
     def setGoal(self):
         forklift_in_goal_frame = self.global_to_pallet(self.global_position)
         self.distance = forklift_in_goal_frame[0][0]
-        goal_point = np.asarray(([self.distance - 1.2], [0], [1] ))
+        goal_point = np.asarray(([self.distance + self.lookahead], [0], [1] ))
         self.global_goal = self.pallet_to_global(goal_point)
 
 
