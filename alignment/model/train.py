@@ -159,7 +159,11 @@ def train():
                'train_op': train_op,
                'merged': merged,
                'step': batch}
-
+			   
+        # Add ops to save and restore all the variables.
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)        
+        saver = tf.train.Saver(variables)
+		
         for epoch in range(MAX_EPOCH):
             log_string('**** EPOCH %03d ****' % (epoch))
             sys.stdout.flush()
@@ -168,8 +172,8 @@ def train():
             eval_one_epoch(sess, ops, test_writer)
             
             # Save the variables to disk.
-            if epoch % 10 == 0:
-                save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"))
+            if epoch % 1 == 0:
+                save_path = saver.save(sess, os.path.join(LOG_DIR, "model_{}.ckpt".format(epoch)))
                 log_string("Model saved in file: %s" % save_path)
 
 
