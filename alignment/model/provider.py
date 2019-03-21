@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import h5py
 import pdb
+import math
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
@@ -21,6 +22,33 @@ def shuffle_data(data, distance, labels):
     np.random.shuffle(idx)
     return data[idx, ...], distance[idx, ...], labels[idx, ...], idx
 
+def rotate_point_cloud_aroud_z_axis(batch_data, batch_distance, batch_label):
+    """ Randomly rotate the point clouds to augument the dataset, around the z axis
+        rotation is per shape based along up direction
+        Input:
+          BxNx3 array, original batch of point clouds
+        Return:
+          BxNx3 array, rotated batch of point clouds
+    """
+    rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
+    rotated_distance = np.zeros(batch_distance.shape, dtype=np.float32)
+    rotated_label = np.zeros(batch_label.shape, dtype=np.float32)
+	
+    for k in range(batch_data.shape[0]):
+        rotation_angle = np.random.uniform() * 2 * np.pi
+        cosval = np.cos(rotation_angle)
+        sinval = np.sin(rotation_angle)
+        rotation_matrix = np.array([[cosval, sinval, 0],
+                                    [-sinval, cosval, 0],
+                                    [0, 0, 1]])
+        shape_pc = batch_data[k, ...]
+        shape_distance = np.expand_dims(batch_distance[k,...], axis=0)
+        rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
+        rotated_distance[k, ...] = np.dot(shape_distance.reshape((-1, 3)), rotation_matrix)
+        rotated_label[k] = batch_label[k] + math.degrees(rotation_angle) / 180.0
+        if rotated_label[k] > 1:
+            rotated_label[k] = batch_label[k] - 2
+    return rotated_data, rotated_distance, rotated_label
 
 def rotate_point_cloud(batch_data):
     """ Randomly rotate the point clouds to augument the dataset
@@ -62,6 +90,20 @@ def rotate_point_cloud_by_angle(batch_data, rotation_angle):
         rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
     return rotated_data
 
+def jitter_point_cloud_and_distance(batch_data, batch_distance, sigma=0.01, clip=0.05):
+    """ Randomly jitter points. jittering is per point.
+        Input:
+          BxNx3 array, original batch of point clouds
+        Return:
+          BxNx3 array, jittered batch of point clouds 
+    """
+    B, N, C = batch_data.shape
+    assert(clip > 0)
+    jittered_data = np.clip(sigma * np.random.randn(B, N, C), -1*clip, clip)
+    jittered_data += batch_data
+    jittered_distance = np.clip(sigma * np.random.randn(B, C), -1*clip, clip)
+    jittered_distance += batch_distance
+    return jittered_data, jittered_distance
 
 def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
     """ Randomly jitter points. jittering is per point.

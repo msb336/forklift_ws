@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--start_x', '-start_x', help='x coordinate of the forklift start point', default=83.770279, type=float)
 parser.add_argument('--start_y', '-start_y', help='y coordinate of the forklift start point', default=-1772.335938, type=float)
 parser.add_argument('--start_z', '-start_z', help='z coordinate of the forklift start point', default=0.304142, type=float)
-parser.add_argument('--map', '-map', help='path to the numpy of the map', default=".\\output_map\\static02\\map.npy", type=str)
+parser.add_argument('--map', '-map', help='path to the numpy of the map', default=".\\output_map\\static05\\map.npy", type=str)
 args = parser.parse_args()
 
 # actual map boundaries

@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0, help='GPU to use [default: GPU 0]')
 parser.add_argument('--model', default='pointnet_cls', help='Model name: pointnet_cls or pointnet_cls_basic [default: pointnet_cls]')
 parser.add_argument('--log_dir', default='log', help='Log dir [default: log]')
-parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
+parser.add_argument('--num_point', type=int, default=2048, help='Point Number [256/512/1024/2048] [default: 1024]')
 parser.add_argument('--max_epoch', type=int, default=250, help='Epoch to run [default: 250]')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch Size during training [default: 32]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
@@ -196,11 +196,11 @@ def train_one_epoch(sess, ops, train_writer):
 		end_idx = (batch_idx+1) * BATCH_SIZE
 		
 		# Augment batched point clouds by rotation and jittering
-		#rotated_data = provider.rotate_point_cloud(current_data[start_idx:end_idx, :, :])
-		jittered_data = provider.jitter_point_cloud(current_data[start_idx:end_idx, :, :])
+		rotated_data, rotated_distance, rotated_label = provider.rotate_point_cloud_aroud_z_axis(current_data[start_idx:end_idx, :, :], current_distance[start_idx:end_idx, :], current_label[start_idx:end_idx, :])
+		jittered_data, jittered_distance = provider.jitter_point_cloud_and_distance(rotated_data, rotated_distance) # current_distance[start_idx:end_idx, :], current_label[start_idx:end_idx, :]
 		feed_dict = {ops['pointclouds_pl']: jittered_data,
-					 ops['distance_pl']: current_distance[start_idx:end_idx, :],
-					 ops['labels_pl']: current_label[start_idx:end_idx, :],
+					 ops['distance_pl']: jittered_distance, 
+					 ops['labels_pl']: rotated_label,
 					 ops['is_training_pl']: is_training,}
 		summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
 			ops['train_op'], ops['loss'], ops['pred']], feed_dict=feed_dict)
