@@ -9,7 +9,7 @@
         <rosparam file="planner-params/local_costmap_params.yaml" command="load"  />
         <rosparam file="planner-params/global_costmap_params.yaml" command="load"  />
     </node>
-    <node pkg="neural_network_planner" type="nn_node.py" name="nn_node" />
+    <node pkg="motion_planner" type="pid_node.py" name="pid_node" />
     <node pkg="airsim_ros_pkgs" type="ackermann_converter_node.py" name="control_converter" />
     <node pkg="move_base" type="move_base" name="move_base" >
         <rosparam file="planner-params/costmap_params.yaml" command="load" ns="global_costmap" />

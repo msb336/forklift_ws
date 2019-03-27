@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-from neural_network_controller import NeuralNetworkController
+from PIDController import PIDController
 import rospy
 
 rospy.init_node('nn_node', anonymous=False)
 loop_rate = 15 
 rate = rospy.Rate(loop_rate)
-neural_network_controller = NeuralNetworkController()
+pid_controller = PIDController()
 
 while not rospy.is_shutdown():
-    neural_network_controller.update()
+    pid_controller.update()
     rate.sleep()
 

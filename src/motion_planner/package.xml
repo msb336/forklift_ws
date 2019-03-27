@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>neural_network_planner</name>
+  <name>motion_planner</name>
   <version>0.0.1</version>
   <description>neural network for planning and control of HMI forklift robot</description>
 
