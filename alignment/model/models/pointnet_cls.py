@@ -42,6 +42,12 @@ def get_model(point_cloud, distance, is_training, bn_decay=None):
         transform = feature_transform_net(net, is_training, bn_decay, K=64)
     end_points['transform'] = transform
     net_transformed = tf.matmul(tf.squeeze(net, axis=[2]), transform)
+	
+	# concat distance to each one of the points
+    #distance = tf.expand_dims(distance, axis=1)
+    #distance = tf.tile(distance, [1,2048,1])
+    #net_transformed = tf.concat([distance, net_transformed], axis=2)
+	
     net_transformed = tf.expand_dims(net_transformed, [2])
 
     net = tf_util.conv2d(net_transformed, 64, [1,1],

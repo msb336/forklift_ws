@@ -16,9 +16,9 @@ parser.add_argument('--output_dir', '-output_dir', help='path to destination fol
 parser.add_argument('--start_x', '-start_x', help='x coordinate of the forklift start point', default=83.770279, type=float)
 parser.add_argument('--start_y', '-start_y', help='y coordinate of the forklift start point', default=-1772.335938, type=float)
 parser.add_argument('--start_z', '-start_z', help='z coordinate of the forklift start point', default=0.304142, type=float)
-parser.add_argument('--pdt_max', '-pdt_max', help='pallet distance threshold max in centimeters', default=350, type=float)
-parser.add_argument('--pdt_min', '-pdt_min', help='pallet distance threshold min in centimeters', default=100, type=float)
-parser.add_argument('--edt', '-edt', help='environment distance threshold in meters', default=5, type=float) # for each axis. throwing points that are larger than ...
+parser.add_argument('--pdt_max', '-pdt_max', help='pallet distance threshold max in centimeters', default=750, type=float)
+parser.add_argument('--pdt_min', '-pdt_min', help='pallet distance threshold min in centimeters', default=0, type=float)
+parser.add_argument('--edt', '-edt', help='environment distance threshold in meters', default=10, type=float) # for each axis. throwing points that are larger than ...
 parser.add_argument('--num_points', '-num_points', help='number of data points to store eventually', default=2048, type=int) # defined by the input to the net
 parser.add_argument('--z_const', '-z_const', help='constant to add to the z axis of the forklift', default=216.4, type=float)
 parser.add_argument('--batch_size', '-batch_size', help='number of samples in a batch', default=32, type=int)
